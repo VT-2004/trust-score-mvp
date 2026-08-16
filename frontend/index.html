@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Trust Score — GitHub Authenticity Report</title>
+<style>
+  :root {
+    --bg: #0f1115;
+    --card: #171a21;
+    --border: #2a2f3a;
+    --text: #e8eaed;
+    --muted: #9aa1ac;
+    --accent: #6c8dff;
+    --good: #3fbf7f;
+    --warn: #e0a638;
+    --bad: #e05c5c;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+  }
+  .container { max-width: 780px; margin: 0 auto; padding: 40px 20px 80px; }
+  h1 { font-size: 1.6rem; margin-bottom: 4px; }
+  .subtitle { color: var(--muted); margin-bottom: 32px; font-size: 0.95rem; }
+  .search-box {
+    display: flex; gap: 10px; margin-bottom: 8px;
+  }
+  input[type="text"] {
+    flex: 1; padding: 12px 14px; border-radius: 8px;
+    border: 1px solid var(--border); background: var(--card); color: var(--text);
+    font-size: 1rem;
+  }
+  button {
+    padding: 12px 20px; border-radius: 8px; border: none;
+    background: var(--accent); color: white; font-weight: 600;
+    cursor: pointer; font-size: 1rem;
+  }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+  .hint { color: var(--muted); font-size: 0.85rem; margin-bottom: 24px; }
+  .status-banner {
+    padding: 10px 14px; border-radius: 8px; margin-bottom: 24px; font-size: 0.85rem;
+    border: 1px solid var(--border);
+  }
+  .card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 12px; padding: 24px; margin-bottom: 20px;
+  }
+  .card h2 { margin-top: 0; font-size: 1.1rem; }
+  .score-badge {
+    display: inline-block; padding: 4px 12px; border-radius: 20px;
+    font-weight: 700; font-size: 0.9rem;
+  }
+  .score-good { background: rgba(63,191,127,0.15); color: var(--good); }
+  .score-warn { background: rgba(224,166,56,0.15); color: var(--warn); }
+  .score-bad { background: rgba(224,92,92,0.15); color: var(--bad); }
+  ul { padding-left: 20px; margin: 8px 0; }
+  li { margin-bottom: 6px; color: var(--muted); line-height: 1.5; }
+  .repo-item {
+    padding: 14px 0; border-top: 1px solid var(--border);
+  }
+  .repo-item:first-child { border-top: none; }
+  .repo-name { font-weight: 600; }
+  .signal-row {
+    display: flex; justify-content: space-between; font-size: 0.85rem;
+    color: var(--muted); margin: 4px 0;
+  }
+  .loading { color: var(--muted); font-style: italic; }
+  .error-box {
+    background: rgba(224,92,92,0.1); border: 1px solid var(--bad);
+    color: var(--bad); padding: 14px; border-radius: 8px; margin-bottom: 20px;
+    font-size: 0.9rem; white-space: pre-wrap;
+  }
+  .disclaimer {
+    font-size: 0.8rem; color: var(--muted); margin-top: 30px;
+    border-top: 1px solid var(--border); padding-top: 16px; line-height: 1.6;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>🔍 GitHub Trust Score</h1>
+  <p class="subtitle">AI-assisted authenticity consistency report for freelancer/developer portfolios</p>
+
+  <div class="search-box">
+    <input type="text" id="username" placeholder="Enter a GitHub username (e.g. torvalds)" />
+    <button id="analyzeBtn" onclick="runAnalysis()">Analyze</button>
+  </div>
+  <div class="hint">Analyzes all substantive public, non-fork repos (up to 20 deep-analyzed per run). Takes 20–60 seconds depending on profile size.</div>
+
+  <div id="statusBanner"></div>
+  <div id="results"></div>
+
+  <div class="disclaimer">
+    This tool produces a <strong>consistency/plausibility signal</strong>, not proof of fraud.
+    Scores reflect patterns in public commit metadata only — private/client work is invisible to this analysis.
+    Always use this alongside, not instead of, direct conversation with the candidate.
+  </div>
+</div>
+
+<script>
+const API_BASE = window.location.origin;
+
+async function checkHealth() {
+  try {
+    const res = await fetch(`${API_BASE}/api/health`);
+    const data = await res.json();
+    const banner = document.getElementById('statusBanner');
+    if (!data.githubTokenSet || !data.groqKeySet) {
+      const missing = [];
+      if (!data.githubTokenSet) missing.push('GITHUB_TOKEN');
+      if (!data.groqKeySet) missing.push('GROQ_API_KEY');
+      banner.innerHTML = `<div class="status-banner" style="border-color:var(--warn); color:var(--warn)">
+        ⚠️ Missing in backend/.env: ${missing.join(', ')}. Add them and restart the server. See backend/.env.example for instructions.
+      </div>`;
+    }
+  } catch (e) {
+    document.getElementById('statusBanner').innerHTML =
+      `<div class="status-banner" style="border-color:var(--bad); color:var(--bad)">Backend not reachable. Is the server running? (npm start in /backend)</div>`;
+  }
+}
+checkHealth();
+
+function scoreClass(score) {
+  if (score >= 70) return 'score-good';
+  if (score >= 45) return 'score-warn';
+  return 'score-bad';
+}
+
+async function runAnalysis() {
+  const username = document.getElementById('username').value.trim();
+  const resultsDiv = document.getElementById('results');
+  const btn = document.getElementById('analyzeBtn');
+  if (!username) return;
+
+  btn.disabled = true;
+  resultsDiv.innerHTML = '<p class="loading">Fetching repos, analyzing commit patterns, generating AI report...</p>';
+
+  try {
+    const res = await fetch(`${API_BASE}/api/analyze`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username })
+    });
+    const data = await res.json();
+
+    if (!res.ok) {
+      resultsDiv.innerHTML = `<div class="error-box">Error: ${data.error}</div>`;
+      btn.disabled = false;
+      return;
+    }
+
+    renderReport(data);
+  } catch (e) {
+    resultsDiv.innerHTML = `<div class="error-box">Request failed: ${e.message}</div>`;
+  }
+  btn.disabled = false;
+}
+
+function renderReport(data) {
+  const { aiReport, rawAnalysis } = data;
+  const avgScore = rawAnalysis.crossRepoConsistency.averageSignalScore;
+
+  let html = `
+    <div class="card">
+      <h2>Summary for @${data.username}
+        <span class="score-badge ${scoreClass(avgScore)}">${avgScore}/100</span>
+      </h2>
+      <p>${aiReport.overall_summary}</p>
+      <p style="font-size:0.85rem;color:var(--muted)">Confidence: <strong>${aiReport.confidence_level}</strong> · ${rawAnalysis.reposAnalyzed} of ${rawAnalysis.substantiveRepoCount} substantive repos analyzed (${rawAnalysis.totalNonForkRepos} total non-fork repos found)</p>
+      ${rawAnalysis.skippedRepos && rawAnalysis.skippedRepos.length ? `<p style="font-size:0.8rem;color:var(--muted)">Skipped ${rawAnalysis.skippedRepos.length} empty/unreadable repo(s): ${rawAnalysis.skippedRepos.map(s => s.repo).join(', ')}</p>` : ''}
+    </div>
+
+    <div class="card">
+      <h2>✅ Positive signals</h2>
+      <ul>${aiReport.positive_signals.map(s => `<li>${s}</li>`).join('') || '<li>None identified</li>'}</ul>
+    </div>
+
+    <div class="card">
+      <h2>👀 Worth reviewing</h2>
+      <ul>${aiReport.worth_reviewing.map(s => `<li>${s}</li>`).join('') || '<li>None identified</li>'}</ul>
+    </div>
+
+    <div class="card">
+      <h2>💡 Recommendation</h2>
+      <p>${aiReport.recommendation}</p>
+    </div>
+
+    <div class="card">
+      <h2>Per-repo breakdown</h2>
+      ${rawAnalysis.repoAnalyses.map(r => `
+        <div class="repo-item">
+          <div class="repo-name">${r.repo} <span class="score-badge ${scoreClass(r.overallSignalScore)}">${r.overallSignalScore}/100</span></div>
+          <div class="signal-row"><span>Commit cadence</span><span>${r.signals.commitCadence.note}</span></div>
+          <div class="signal-row"><span>Message quality</span><span>${r.signals.commitMessages.note}</span></div>
+          <div class="signal-row"><span>Author consistency</span><span>${r.signals.authorConsistency.note}</span></div>
+          <div class="signal-row"><span>Timeline plausibility</span><span>${r.signals.timelinePlausibility.note}</span></div>
+        </div>
+      `).join('')}
+    </div>
+  `;
+  document.getElementById('results').innerHTML = html;
+}
+
+document.getElementById('username').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') runAnalysis();
+});
+</script>
+</body>
+</html>
