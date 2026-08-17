@@ -4,93 +4,191 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Trust Score — GitHub Authenticity Report</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
   :root {
-    --bg: #0f1115;
-    --card: #171a21;
-    --border: #2a2f3a;
-    --text: #e8eaed;
-    --muted: #9aa1ac;
-    --accent: #6c8dff;
-    --good: #3fbf7f;
-    --warn: #e0a638;
-    --bad: #e05c5c;
+    --bg: #0a0e14;
+    --bg-raised: #10141c;
+    --card: #12161f;
+    --border: #1e2530;
+    --text: #d8dee9;
+    --muted: #6b7684;
+    --accent: #56d364;
+    --accent-dim: rgba(86,211,100,0.12);
+    --warn: #d29922;
+    --warn-dim: rgba(210,153,34,0.12);
+    --bad: #f85149;
+    --bad-dim: rgba(248,81,73,0.12);
+    --mono: 'JetBrains Mono', ui-monospace, Menlo, monospace;
+    --sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   }
   * { box-sizing: border-box; }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+  }
   body {
     margin: 0;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-family: var(--sans);
     background: var(--bg);
+    background-image:
+      linear-gradient(var(--border) 1px, transparent 1px),
+      linear-gradient(90deg, var(--border) 1px, transparent 1px);
+    background-size: 40px 40px;
+    background-attachment: fixed;
+    background-position: -1px -1px;
     color: var(--text);
     min-height: 100vh;
   }
-  .container { max-width: 780px; margin: 0 auto; padding: 40px 20px 80px; }
-  h1 { font-size: 1.6rem; margin-bottom: 4px; }
-  .subtitle { color: var(--muted); margin-bottom: 32px; font-size: 0.95rem; }
-  .search-box {
-    display: flex; gap: 10px; margin-bottom: 8px;
+  .container { max-width: 760px; margin: 0 auto; padding: 56px 24px 80px; }
+
+  /* ---- Hero / landing ---- */
+  .eyebrow {
+    font-family: var(--mono); font-size: 0.75rem; color: var(--accent);
+    letter-spacing: 0.08em; text-transform: uppercase; display: flex; align-items: center; gap: 8px;
+    margin-bottom: 14px;
   }
+  .eyebrow::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 8px var(--accent); }
+  h1 {
+    font-family: var(--mono); font-weight: 700; font-size: clamp(1.7rem, 4.5vw, 2.3rem);
+    margin: 0 0 14px; line-height: 1.25; letter-spacing: -0.01em;
+  }
+  h1 .dim { color: var(--muted); font-weight: 500; }
+  .subtitle { color: var(--muted); margin: 0 0 36px; font-size: 1.02rem; line-height: 1.6; max-width: 58ch; }
+
+  .how-it-works {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px;
+    margin-bottom: 40px;
+  }
+  .step {
+    background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+    padding: 16px; position: relative;
+  }
+  .step .num {
+    font-family: var(--mono); font-size: 0.75rem; color: var(--accent);
+    display: block; margin-bottom: 8px;
+  }
+  .step .step-title { font-weight: 600; font-size: 0.9rem; margin-bottom: 4px; }
+  .step .step-desc { color: var(--muted); font-size: 0.8rem; line-height: 1.5; }
+
+  /* ---- Search ---- */
+  .search-box { display: flex; gap: 10px; margin-bottom: 8px; }
   input[type="text"] {
-    flex: 1; padding: 12px 14px; border-radius: 8px;
-    border: 1px solid var(--border); background: var(--card); color: var(--text);
-    font-size: 1rem;
+    flex: 1; padding: 13px 16px; border-radius: 8px;
+    border: 1px solid var(--border); background: var(--bg-raised); color: var(--text);
+    font-family: var(--mono); font-size: 0.95rem;
+  }
+  input[type="text"]::placeholder { color: var(--muted); }
+  input[type="text"]:focus, button:focus-visible {
+    outline: 2px solid var(--accent); outline-offset: 2px;
   }
   button {
-    padding: 12px 20px; border-radius: 8px; border: none;
-    background: var(--accent); color: white; font-weight: 600;
-    cursor: pointer; font-size: 1rem;
+    padding: 13px 22px; border-radius: 8px; border: none;
+    background: var(--accent); color: #06280e; font-weight: 700;
+    cursor: pointer; font-size: 0.95rem; font-family: var(--sans);
+    transition: transform 0.1s ease, box-shadow 0.15s ease;
+    white-space: nowrap;
   }
+  button:hover:not(:disabled) { box-shadow: 0 0 0 3px var(--accent-dim); }
+  button:active:not(:disabled) { transform: translateY(1px); }
   button:disabled { opacity: 0.5; cursor: not-allowed; }
-  .hint { color: var(--muted); font-size: 0.85rem; margin-bottom: 24px; }
+  .hint { color: var(--muted); font-size: 0.82rem; margin-bottom: 28px; font-family: var(--mono); }
+
   .status-banner {
-    padding: 10px 14px; border-radius: 8px; margin-bottom: 24px; font-size: 0.85rem;
-    border: 1px solid var(--border);
+    padding: 11px 14px; border-radius: 8px; margin-bottom: 20px; font-size: 0.85rem;
+    border: 1px solid var(--border); line-height: 1.5;
   }
+
+  /* ---- Cards ---- */
   .card {
     background: var(--card); border: 1px solid var(--border);
-    border-radius: 12px; padding: 24px; margin-bottom: 20px;
+    border-radius: 12px; padding: 24px; margin-bottom: 16px;
   }
-  .card h2 { margin-top: 0; font-size: 1.1rem; }
+  .card h2 {
+    margin: 0 0 10px; font-size: 1.02rem; font-family: var(--mono); font-weight: 600;
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  }
+  .card p { line-height: 1.6; margin: 8px 0; }
   .score-badge {
-    display: inline-block; padding: 4px 12px; border-radius: 20px;
-    font-weight: 700; font-size: 0.9rem;
+    display: inline-flex; align-items: center; gap: 4px; padding: 3px 11px; border-radius: 20px;
+    font-weight: 700; font-size: 0.82rem; font-family: var(--mono);
   }
-  .score-good { background: rgba(63,191,127,0.15); color: var(--good); }
-  .score-warn { background: rgba(224,166,56,0.15); color: var(--warn); }
-  .score-bad { background: rgba(224,92,92,0.15); color: var(--bad); }
+  .score-good { background: var(--accent-dim); color: var(--accent); }
+  .score-warn { background: var(--warn-dim); color: var(--warn); }
+  .score-bad { background: var(--bad-dim); color: var(--bad); }
   ul { padding-left: 20px; margin: 8px 0; }
-  li { margin-bottom: 6px; color: var(--muted); line-height: 1.5; }
-  .repo-item {
-    padding: 14px 0; border-top: 1px solid var(--border);
-  }
+  li { margin-bottom: 7px; color: var(--muted); line-height: 1.55; font-size: 0.93rem; }
+  .repo-item { padding: 14px 0; border-top: 1px solid var(--border); }
   .repo-item:first-child { border-top: none; }
-  .repo-name { font-weight: 600; }
+  .repo-name { font-weight: 600; font-family: var(--mono); font-size: 0.88rem; }
   .signal-row {
-    display: flex; justify-content: space-between; font-size: 0.85rem;
-    color: var(--muted); margin: 4px 0;
+    display: flex; justify-content: space-between; gap: 16px; font-size: 0.83rem;
+    color: var(--muted); margin: 5px 0; line-height: 1.5;
   }
-  .loading { color: var(--muted); font-style: italic; }
+  .signal-row span:first-child { flex: 0 0 130px; color: var(--text); font-family: var(--mono); font-size: 0.78rem; }
+
+  /* ---- Loading ---- */
+  .loading-box { display: flex; align-items: center; gap: 12px; padding: 18px 4px; color: var(--muted); font-family: var(--mono); font-size: 0.9rem; }
+  .spinner {
+    width: 16px; height: 16px; border-radius: 50%;
+    border: 2px solid var(--border); border-top-color: var(--accent);
+    animation: spin 0.8s linear infinite; flex-shrink: 0;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
   .error-box {
-    background: rgba(224,92,92,0.1); border: 1px solid var(--bad);
+    background: var(--bad-dim); border: 1px solid var(--bad);
     color: var(--bad); padding: 14px; border-radius: 8px; margin-bottom: 20px;
-    font-size: 0.9rem; white-space: pre-wrap;
+    font-size: 0.9rem; white-space: pre-wrap; font-family: var(--mono);
   }
   .disclaimer {
-    font-size: 0.8rem; color: var(--muted); margin-top: 30px;
-    border-top: 1px solid var(--border); padding-top: 16px; line-height: 1.6;
+    font-size: 0.8rem; color: var(--muted); margin-top: 34px;
+    border-top: 1px solid var(--border); padding-top: 18px; line-height: 1.65;
+  }
+
+  /* ---- Mobile ---- */
+  @media (max-width: 640px) {
+    .container { padding: 32px 16px 60px; }
+    .how-it-works { grid-template-columns: 1fr; }
+    .search-box { flex-direction: column; }
+    button { width: 100%; }
+    .signal-row { flex-direction: column; gap: 2px; }
+    .signal-row span:first-child { flex: none; }
+    .card { padding: 18px; }
   }
 </style>
 </head>
 <body>
 <div class="container">
-  <h1>🔍 GitHub Trust Score</h1>
-  <p class="subtitle">AI-assisted authenticity consistency report for freelancer/developer portfolios</p>
+
+  <div class="eyebrow">github repo analyzer</div>
+  <h1>Is this developer's<br><span class="dim">portfolio actually theirs?</span></h1>
+  <p class="subtitle">Enter any GitHub username. We separate real self-directed projects from coursework/assignment-style repos and score each honestly — no fraud accusations, just consistency signals a hiring client can actually use.</p>
+
+  <div class="how-it-works">
+    <div class="step">
+      <span class="num">01</span>
+      <div class="step-title">Pull the history</div>
+      <div class="step-desc">We crawl every public, non-fork repo and its commit metadata.</div>
+    </div>
+    <div class="step">
+      <span class="num">02</span>
+      <div class="step-title">Split & score</div>
+      <div class="step-desc">Standalone projects and assignment-style repos are scored separately.</div>
+    </div>
+    <div class="step">
+      <span class="num">03</span>
+      <div class="step-title">Get the report</div>
+      <div class="step-desc">A plain-English summary, plus a link you can share anywhere.</div>
+    </div>
+  </div>
 
   <div class="search-box">
-    <input type="text" id="username" placeholder="Enter a GitHub username (e.g. torvalds)" />
+    <input type="text" id="username" placeholder="github-username" />
     <button id="analyzeBtn" onclick="runAnalysis()">Analyze</button>
   </div>
-  <div class="hint">Analyzes all substantive public, non-fork repos (up to 20 deep-analyzed per run). Takes 20–60 seconds depending on profile size.</div>
+  <div class="hint">$ up to 20 repos deep-analyzed per run · takes 20–60s</div>
 
   <div id="statusBanner"></div>
   <div id="viewingSavedBanner"></div>
@@ -105,9 +203,8 @@
 
 <script>
 // IMPORTANT: once frontend and backend are deployed on separate domains
-// (e.g. frontend on Vercel, backend on Railway), this must point at your
-// live backend URL instead of same-origin. Update this after you deploy
-// the backend — e.g. "https://trust-score-backend.up.railway.app"
+// (e.g. frontend on Vercel, backend on Render), this must point at your
+// live backend URL instead of same-origin.
 const API_BASE = "https://trust-score-mvp.onrender.com";
 
 async function checkHealth() {
@@ -131,9 +228,6 @@ async function checkHealth() {
 checkHealth();
 
 // ---- Shareable report links ----
-
-// On page load, check for ?report=ID in the URL. If present, fetch and display
-// that saved report directly instead of showing the search box in its normal state.
 async function loadReportFromUrl() {
   const params = new URLSearchParams(window.location.search);
   const reportId = params.get('report');
@@ -141,7 +235,7 @@ async function loadReportFromUrl() {
 
   const resultsDiv = document.getElementById('results');
   const banner = document.getElementById('viewingSavedBanner');
-  resultsDiv.innerHTML = '<p class="loading">Loading saved report...</p>';
+  showLoading(resultsDiv, ['Loading saved report…']);
 
   try {
     const res = await fetch(`${API_BASE}/api/report/${reportId}`);
@@ -167,6 +261,24 @@ function scoreClass(score) {
   return 'score-bad';
 }
 
+// ---- Loading state with rotating progress messages ----
+let loadingInterval = null;
+function showLoading(container, messages) {
+  let i = 0;
+  container.innerHTML = `<div class="loading-box"><div class="spinner"></div><span id="loadingMsg">${messages[0]}</span></div>`;
+  if (loadingInterval) clearInterval(loadingInterval);
+  if (messages.length > 1) {
+    loadingInterval = setInterval(() => {
+      i = (i + 1) % messages.length;
+      const el = document.getElementById('loadingMsg');
+      if (el) el.textContent = messages[i];
+    }, 3200);
+  }
+}
+function stopLoading() {
+  if (loadingInterval) { clearInterval(loadingInterval); loadingInterval = null; }
+}
+
 async function runAnalysis() {
   const username = document.getElementById('username').value.trim();
   const resultsDiv = document.getElementById('results');
@@ -174,7 +286,13 @@ async function runAnalysis() {
   if (!username) return;
 
   btn.disabled = true;
-  resultsDiv.innerHTML = '<p class="loading">Fetching repos, analyzing commit patterns, generating AI report...</p>';
+  showLoading(resultsDiv, [
+    'Fetching repo list from GitHub…',
+    'Crawling commit history…',
+    'Separating assignments from standalone projects…',
+    'Scoring commit patterns…',
+    'Writing the AI summary…'
+  ]);
 
   try {
     const res = await fetch(`${API_BASE}/api/analyze`, {
@@ -183,6 +301,7 @@ async function runAnalysis() {
       body: JSON.stringify({ username })
     });
     const data = await res.json();
+    stopLoading();
 
     if (!res.ok) {
       resultsDiv.innerHTML = `<div class="error-box">Error: ${data.error}</div>`;
@@ -192,12 +311,12 @@ async function runAnalysis() {
 
     renderReport(data);
 
-    // Make this run's URL shareable — update the address bar without reloading
     if (data.reportId) {
       const newUrl = `${window.location.pathname}?report=${data.reportId}`;
       window.history.pushState({}, '', newUrl);
     }
   } catch (e) {
+    stopLoading();
     resultsDiv.innerHTML = `<div class="error-box">Request failed: ${e.message}</div>`;
   }
   btn.disabled = false;
@@ -214,29 +333,29 @@ function renderReport(data) {
     return repoAnalyses.map(r => `
       <div class="repo-item">
         <div class="repo-name">${r.repo} <span class="score-badge ${scoreClass(r.overallSignalScore)}">${r.overallSignalScore}/100</span></div>
-        <div class="signal-row"><span>Commit cadence</span><span>${r.signals.commitCadence.note}</span></div>
-        <div class="signal-row"><span>Message quality</span><span>${r.signals.commitMessages.note}</span></div>
-        <div class="signal-row"><span>Author consistency</span><span>${r.signals.authorConsistency.note}</span></div>
-        <div class="signal-row"><span>Timeline plausibility</span><span>${r.signals.timelinePlausibility.note}</span></div>
+        <div class="signal-row"><span>commit cadence</span><span>${r.signals.commitCadence.note}</span></div>
+        <div class="signal-row"><span>message quality</span><span>${r.signals.commitMessages.note}</span></div>
+        <div class="signal-row"><span>author</span><span>${r.signals.authorConsistency.note}</span></div>
+        <div class="signal-row"><span>timeline</span><span>${r.signals.timelinePlausibility.note}</span></div>
       </div>
     `).join('');
   }
 
   let html = `
     <div class="card">
-      <h2>@${data.username} — Two separate scores</h2>
+      <h2>@${data.username}</h2>
       <p style="font-size:0.85rem;color:var(--muted)">Standalone projects and assignment-style repos are scored separately, since they follow different normal patterns (assignments are typically pushed once; standalone projects usually show iteration).</p>
       ${data.reportId ? `
-      <div style="display:flex;gap:8px;align-items:center;margin-top:12px">
+      <div style="display:flex;gap:8px;align-items:center;margin-top:14px">
         <input type="text" readonly id="shareUrlInput" value="${window.location.origin}${window.location.pathname}?report=${data.reportId}"
-          style="flex:1;padding:8px 10px;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--muted);font-size:0.8rem" />
-        <button onclick="copyShareLink()" style="padding:8px 14px;font-size:0.85rem" id="copyBtn">Copy link</button>
+          style="flex:1;padding:9px 11px;border-radius:6px;border:1px solid var(--border);background:var(--bg-raised);color:var(--muted);font-size:0.78rem;font-family:var(--mono)" />
+        <button onclick="copyShareLink()" style="padding:9px 16px;font-size:0.82rem" id="copyBtn">Copy link</button>
       </div>` : ''}
     </div>
 
     <div class="card">
       <h2>🚀 Standalone Projects
-        ${standaloneScore !== null ? `<span class="score-badge ${scoreClass(standaloneScore)}">${standaloneScore}/100</span>` : '<span class="score-badge score-warn">No data</span>'}
+        ${standaloneScore !== null ? `<span class="score-badge ${scoreClass(standaloneScore)}">${standaloneScore}/100</span>` : '<span class="score-badge score-warn">no data</span>'}
       </h2>
       <p style="font-size:0.85rem;color:var(--muted)">${sp.analyzedCount} of ${sp.repoCount} standalone repos analyzed</p>
       <p>${aiReport.standalone_summary || 'No standalone project repos found to analyze.'}</p>
@@ -244,7 +363,7 @@ function renderReport(data) {
 
     <div class="card">
       <h2>📋 Assignment-Style Repos
-        ${assignmentScore !== null ? `<span class="score-badge ${scoreClass(assignmentScore)}">${assignmentScore}/100</span>` : '<span class="score-badge score-warn">No data</span>'}
+        ${assignmentScore !== null ? `<span class="score-badge ${scoreClass(assignmentScore)}">${assignmentScore}/100</span>` : '<span class="score-badge score-warn">no data</span>'}
       </h2>
       <p style="font-size:0.85rem;color:var(--muted)">${ar.analyzedCount} of ${ar.repoCount} assignment-style repos analyzed</p>
       <p style="font-size:0.8rem;color:var(--accent)">ℹ️ Could be coursework or a real take-home test from a company — can't tell which from repo data alone, so this is reported separately rather than guessed at.</p>
@@ -292,7 +411,6 @@ function copyShareLink() {
     btn.textContent = 'Copied!';
     setTimeout(() => { btn.textContent = original; }, 1500);
   }).catch(() => {
-    // Fallback for browsers blocking clipboard API
     document.execCommand('copy');
   });
 }
