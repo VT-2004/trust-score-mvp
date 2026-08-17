@@ -93,6 +93,7 @@
   <div class="hint">Analyzes all substantive public, non-fork repos (up to 20 deep-analyzed per run). Takes 20–60 seconds depending on profile size.</div>
 
   <div id="statusBanner"></div>
+  <div id="viewingSavedBanner"></div>
   <div id="results"></div>
 
   <div class="disclaimer">
@@ -103,7 +104,11 @@
 </div>
 
 <script>
-const API_BASE = "https://trust-score-mvp.onrender.com"; // <-- CHANGE THIS after backend is deployed
+// IMPORTANT: once frontend and backend are deployed on separate domains
+// (e.g. frontend on Vercel, backend on Railway), this must point at your
+// live backend URL instead of same-origin. Update this after you deploy
+// the backend — e.g. "https://trust-score-backend.up.railway.app"
+const API_BASE = "https://trust-score-mvp.onrender.com";
 
 async function checkHealth() {
   try {
@@ -124,6 +129,37 @@ async function checkHealth() {
   }
 }
 checkHealth();
+
+// ---- Shareable report links ----
+
+// On page load, check for ?report=ID in the URL. If present, fetch and display
+// that saved report directly instead of showing the search box in its normal state.
+async function loadReportFromUrl() {
+  const params = new URLSearchParams(window.location.search);
+  const reportId = params.get('report');
+  if (!reportId) return;
+
+  const resultsDiv = document.getElementById('results');
+  const banner = document.getElementById('viewingSavedBanner');
+  resultsDiv.innerHTML = '<p class="loading">Loading saved report...</p>';
+
+  try {
+    const res = await fetch(`${API_BASE}/api/report/${reportId}`);
+    const row = await res.json();
+    if (!res.ok) {
+      resultsDiv.innerHTML = `<div class="error-box">Could not load report: ${row.error || 'not found'}</div>`;
+      return;
+    }
+    banner.innerHTML = `<div class="status-banner" style="border-color:var(--accent); color:var(--accent)">
+      📌 Viewing a saved report for <strong>@${row.username}</strong>, generated ${new Date(row.created_at).toLocaleString()}.
+      <a href="${window.location.pathname}" style="color:var(--accent)">Run a new analysis</a>
+    </div>`;
+    renderReport({ reportId: row.id, ...row.report_json });
+  } catch (e) {
+    resultsDiv.innerHTML = `<div class="error-box">Failed to load saved report: ${e.message}</div>`;
+  }
+}
+loadReportFromUrl();
 
 function scoreClass(score) {
   if (score >= 70) return 'score-good';
@@ -155,6 +191,12 @@ async function runAnalysis() {
     }
 
     renderReport(data);
+
+    // Make this run's URL shareable — update the address bar without reloading
+    if (data.reportId) {
+      const newUrl = `${window.location.pathname}?report=${data.reportId}`;
+      window.history.pushState({}, '', newUrl);
+    }
   } catch (e) {
     resultsDiv.innerHTML = `<div class="error-box">Request failed: ${e.message}</div>`;
   }
@@ -184,6 +226,12 @@ function renderReport(data) {
     <div class="card">
       <h2>@${data.username} — Two separate scores</h2>
       <p style="font-size:0.85rem;color:var(--muted)">Standalone projects and assignment-style repos are scored separately, since they follow different normal patterns (assignments are typically pushed once; standalone projects usually show iteration).</p>
+      ${data.reportId ? `
+      <div style="display:flex;gap:8px;align-items:center;margin-top:12px">
+        <input type="text" readonly id="shareUrlInput" value="${window.location.origin}${window.location.pathname}?report=${data.reportId}"
+          style="flex:1;padding:8px 10px;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--muted);font-size:0.8rem" />
+        <button onclick="copyShareLink()" style="padding:8px 14px;font-size:0.85rem" id="copyBtn">Copy link</button>
+      </div>` : ''}
     </div>
 
     <div class="card">
@@ -234,6 +282,20 @@ function renderReport(data) {
 document.getElementById('username').addEventListener('keydown', (e) => {
   if (e.key === 'Enter') runAnalysis();
 });
+
+function copyShareLink() {
+  const input = document.getElementById('shareUrlInput');
+  const btn = document.getElementById('copyBtn');
+  input.select();
+  navigator.clipboard.writeText(input.value).then(() => {
+    const original = btn.textContent;
+    btn.textContent = 'Copied!';
+    setTimeout(() => { btn.textContent = original; }, 1500);
+  }).catch(() => {
+    // Fallback for browsers blocking clipboard API
+    document.execCommand('copy');
+  });
+}
 </script>
 </body>
 </html>
