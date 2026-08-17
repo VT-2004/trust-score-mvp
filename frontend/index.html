@@ -147,6 +147,36 @@
     border-top: 1px solid var(--border); padding-top: 18px; line-height: 1.65;
   }
 
+  /* ---- Dashboard feed ---- */
+  .dashboard-section { margin-top: 48px; }
+  .dashboard-title {
+    font-family: var(--mono); font-size: 1rem; font-weight: 600; margin: 0 0 4px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .dashboard-count { color: var(--muted); font-weight: 400; font-size: 0.85rem; }
+  .dashboard-note { color: var(--muted); font-size: 0.82rem; margin: 0 0 18px; }
+  .dash-card {
+    background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+    margin-bottom: 10px; overflow: hidden; transition: border-color 0.15s ease;
+  }
+  .dash-card:hover { border-color: var(--accent); }
+  .dash-card-head {
+    padding: 14px 18px; cursor: pointer; display: flex; align-items: center;
+    justify-content: space-between; gap: 12px; flex-wrap: wrap;
+  }
+  .dash-card-user { font-family: var(--mono); font-weight: 600; font-size: 0.92rem; }
+  .dash-card-meta { color: var(--muted); font-size: 0.78rem; margin-top: 2px; }
+  .dash-card-scores { display: flex; gap: 6px; flex-wrap: wrap; }
+  .dash-card-body {
+    max-height: 0; overflow: hidden; transition: max-height 0.25s ease;
+    border-top: 1px solid transparent;
+  }
+  .dash-card.expanded .dash-card-body {
+    max-height: 4000px; border-top: 1px solid var(--border);
+  }
+  .dash-card-body-inner { padding: 18px; }
+  .dash-empty { color: var(--muted); font-size: 0.9rem; padding: 20px 0; }
+
   /* ---- Mobile ---- */
   @media (max-width: 640px) {
     .container { padding: 32px 16px 60px; }
@@ -156,6 +186,7 @@
     .signal-row { flex-direction: column; gap: 2px; }
     .signal-row span:first-child { flex: none; }
     .card { padding: 18px; }
+    .dash-card-head { flex-direction: column; align-items: flex-start; }
   }
 </style>
 </head>
@@ -188,7 +219,7 @@
     <input type="text" id="username" placeholder="github-username" />
     <button id="analyzeBtn" onclick="runAnalysis()">Analyze</button>
   </div>
-  <div class="hint">$ up to 20 repos deep-analyzed per run · takes 20–60s</div>
+  <div class="hint">$ up to 20 repos deep-analyzed per run · takes 20–60s · results are public, shown below</div>
 
   <div id="statusBanner"></div>
   <div id="viewingSavedBanner"></div>
@@ -199,13 +230,36 @@
     Scores reflect patterns in public commit metadata only — private/client work is invisible to this analysis.
     Always use this alongside, not instead of, direct conversation with the candidate.
   </div>
+
+  <div class="dashboard-section">
+    <h2 class="dashboard-title">recent tests <span id="dashboardCount" class="dashboard-count"></span></h2>
+    <p class="dashboard-note">Every analysis run here is public. Click a card to expand the full report.</p>
+    <div id="dashboardFeed"><p class="loading-box"><span class="spinner"></span> Loading recent reports…</p></div>
+  </div>
 </div>
 
 <script>
-// IMPORTANT: once frontend and backend are deployed on separate domains
-// (e.g. frontend on Vercel, backend on Render), this must point at your
-// live backend URL instead of same-origin.
 const API_BASE = "https://trust-score-mvp.onrender.com";
+
+// ---- Loading state with rotating progress messages ----
+// Declared first, since loadReportFromUrl() below calls showLoading()
+// immediately on page load — it must exist before that call runs.
+let loadingInterval = null;
+function showLoading(container, messages) {
+  let i = 0;
+  container.innerHTML = `<div class="loading-box"><div class="spinner"></div><span id="loadingMsg">${messages[0]}</span></div>`;
+  if (loadingInterval) clearInterval(loadingInterval);
+  if (messages.length > 1) {
+    loadingInterval = setInterval(() => {
+      i = (i + 1) % messages.length;
+      const el = document.getElementById('loadingMsg');
+      if (el) el.textContent = messages[i];
+    }, 3200);
+  }
+}
+function stopLoading() {
+  if (loadingInterval) { clearInterval(loadingInterval); loadingInterval = null; }
+}
 
 async function checkHealth() {
   try {
@@ -262,24 +316,6 @@ function scoreClass(score) {
   return 'score-bad';
 }
 
-// ---- Loading state with rotating progress messages ----
-let loadingInterval = null;
-function showLoading(container, messages) {
-  let i = 0;
-  container.innerHTML = `<div class="loading-box"><div class="spinner"></div><span id="loadingMsg">${messages[0]}</span></div>`;
-  if (loadingInterval) clearInterval(loadingInterval);
-  if (messages.length > 1) {
-    loadingInterval = setInterval(() => {
-      i = (i + 1) % messages.length;
-      const el = document.getElementById('loadingMsg');
-      if (el) el.textContent = messages[i];
-    }, 3200);
-  }
-}
-function stopLoading() {
-  if (loadingInterval) { clearInterval(loadingInterval); loadingInterval = null; }
-}
-
 async function runAnalysis() {
   const username = document.getElementById('username').value.trim();
   const resultsDiv = document.getElementById('results');
@@ -316,6 +352,7 @@ async function runAnalysis() {
       const newUrl = `${window.location.pathname}?report=${data.reportId}`;
       window.history.pushState({}, '', newUrl);
     }
+    loadDashboard();
   } catch (e) {
     stopLoading();
     resultsDiv.innerHTML = `<div class="error-box">Request failed: ${e.message}</div>`;
@@ -323,34 +360,37 @@ async function runAnalysis() {
   btn.disabled = false;
 }
 
-function renderReport(data) {
+function repoListHtml(repoAnalyses) {
+  return repoAnalyses.map(r => `
+    <div class="repo-item">
+      <div class="repo-name">${r.repo} <span class="score-badge ${scoreClass(r.overallSignalScore)}">${r.overallSignalScore}/100</span></div>
+      <div class="signal-row"><span>commit cadence</span><span>${r.signals.commitCadence.note}</span></div>
+      <div class="signal-row"><span>message quality</span><span>${r.signals.commitMessages.note}</span></div>
+      <div class="signal-row"><span>author</span><span>${r.signals.authorConsistency.note}</span></div>
+      <div class="signal-row"><span>timeline</span><span>${r.signals.timelinePlausibility.note}</span></div>
+    </div>
+  `).join('');
+}
+
+// Shared builder used by both the main results view and each dashboard card's
+// expanded body, so the two never drift out of sync.
+function buildReportCardsHtml(data, opts = {}) {
   const { aiReport, rawAnalysis } = data;
   const sp = rawAnalysis.standaloneProjects;
   const ar = rawAnalysis.assignmentRepos;
   const standaloneScore = sp.consistency ? sp.consistency.averageSignalScore : null;
   const assignmentScore = ar.consistency ? ar.consistency.averageSignalScore : null;
+  const showShareBox = opts.showShareBox !== false;
 
-  function repoListHtml(repoAnalyses) {
-    return repoAnalyses.map(r => `
-      <div class="repo-item">
-        <div class="repo-name">${r.repo} <span class="score-badge ${scoreClass(r.overallSignalScore)}">${r.overallSignalScore}/100</span></div>
-        <div class="signal-row"><span>commit cadence</span><span>${r.signals.commitCadence.note}</span></div>
-        <div class="signal-row"><span>message quality</span><span>${r.signals.commitMessages.note}</span></div>
-        <div class="signal-row"><span>author</span><span>${r.signals.authorConsistency.note}</span></div>
-        <div class="signal-row"><span>timeline</span><span>${r.signals.timelinePlausibility.note}</span></div>
-      </div>
-    `).join('');
-  }
-
-  let html = `
+  return `
     <div class="card">
       <h2>@${data.username}</h2>
       <p style="font-size:0.85rem;color:var(--muted)">Standalone projects and assignment-style repos are scored separately, since they follow different normal patterns (assignments are typically pushed once; standalone projects usually show iteration).</p>
-      ${data.reportId ? `
+      ${showShareBox && data.reportId ? `
       <div style="display:flex;gap:8px;align-items:center;margin-top:14px">
-        <input type="text" readonly id="shareUrlInput" value="${window.location.origin}${window.location.pathname}?report=${data.reportId}"
+        <input type="text" readonly class="shareUrlInput" value="${window.location.origin}${window.location.pathname}?report=${data.reportId}"
           style="flex:1;padding:9px 11px;border-radius:6px;border:1px solid var(--border);background:var(--bg-raised);color:var(--muted);font-size:0.78rem;font-family:var(--mono)" />
-        <button onclick="copyShareLink()" style="padding:9px 16px;font-size:0.82rem" id="copyBtn">Copy link</button>
+        <button onclick="copyShareLink(this)" style="padding:9px 16px;font-size:0.82rem" class="copyBtn">Copy link</button>
       </div>` : ''}
     </div>
 
@@ -396,16 +436,80 @@ function renderReport(data) {
       ${ar.repoAnalyses.length ? repoListHtml(ar.repoAnalyses) : '<p style="color:var(--muted);font-size:0.9rem">None found.</p>'}
     </div>
   `;
-  document.getElementById('results').innerHTML = html;
 }
+
+function renderReport(data) {
+  document.getElementById('results').innerHTML = buildReportCardsHtml(data);
+}
+
+// ---- Dashboard feed: recent reports from everyone ----
+async function loadDashboard() {
+  const feed = document.getElementById('dashboardFeed');
+  const countEl = document.getElementById('dashboardCount');
+  try {
+    const res = await fetch(`${API_BASE}/api/dashboard?limit=30`);
+    const reports = await res.json();
+    if (!res.ok) {
+      feed.innerHTML = `<p class="dash-empty">Couldn't load recent reports.</p>`;
+      return;
+    }
+    if (reports.length === 0) {
+      feed.innerHTML = `<p class="dash-empty">No one's tested a profile yet — be the first.</p>`;
+      countEl.textContent = '';
+      return;
+    }
+    countEl.textContent = `(${reports.length})`;
+    feed.innerHTML = reports.map((r, i) => {
+      const rj = r.report_json;
+      const sp = rj.rawAnalysis.standaloneProjects;
+      const ar = rj.rawAnalysis.assignmentRepos;
+      const standaloneScore = sp.consistency ? sp.consistency.averageSignalScore : null;
+      const assignmentScore = ar.consistency ? ar.consistency.averageSignalScore : null;
+      const when = new Date(r.created_at).toLocaleString();
+      return `
+        <div class="dash-card" id="dash-card-${i}">
+          <div class="dash-card-head" onclick="toggleDashCard(${i})">
+            <div>
+              <div class="dash-card-user">@${r.username}</div>
+              <div class="dash-card-meta">${when}</div>
+            </div>
+            <div class="dash-card-scores">
+              ${standaloneScore !== null ? `<span class="score-badge ${scoreClass(standaloneScore)}">🚀 ${standaloneScore}</span>` : ''}
+              ${assignmentScore !== null ? `<span class="score-badge ${scoreClass(assignmentScore)}">📋 ${assignmentScore}</span>` : ''}
+            </div>
+          </div>
+          <div class="dash-card-body" id="dash-card-body-${i}"></div>
+        </div>
+      `;
+    }).join('');
+
+    window.__dashboardReports = reports;
+  } catch (e) {
+    feed.innerHTML = `<p class="dash-empty">Couldn't reach the backend to load recent reports.</p>`;
+  }
+}
+
+function toggleDashCard(i) {
+  const card = document.getElementById(`dash-card-${i}`);
+  const body = document.getElementById(`dash-card-body-${i}`);
+  const isExpanding = !card.classList.contains('expanded');
+  card.classList.toggle('expanded');
+  if (isExpanding && !body.dataset.loaded) {
+    const r = window.__dashboardReports[i];
+    const data = { username: r.username, reportId: r.id, ...r.report_json };
+    body.innerHTML = `<div class="dash-card-body-inner">${buildReportCardsHtml(data, { showShareBox: false })}</div>`;
+    body.dataset.loaded = 'true';
+  }
+}
+loadDashboard();
 
 document.getElementById('username').addEventListener('keydown', (e) => {
   if (e.key === 'Enter') runAnalysis();
 });
 
-function copyShareLink() {
-  const input = document.getElementById('shareUrlInput');
-  const btn = document.getElementById('copyBtn');
+function copyShareLink(btnEl) {
+  const input = btnEl.previousElementSibling;
+  const btn = btnEl;
   input.select();
   navigator.clipboard.writeText(input.value).then(() => {
     const original = btn.textContent;

@@ -7,7 +7,7 @@ import { fileURLToPath } from "url";
 import { getUserRepos, getRepoCommits, getUserProfile } from "./github.js";
 import { analyzeRepo, crossRepoConsistency, portfolioTimeline, looksLikeAssignment } from "./analyze.js";
 import { generateTrustReport } from "./groq.js";
-import { saveReport, getReport, listReportsForUser } from "./db.js";
+import { saveReport, getReport, listReportsForUser, listRecentReports } from "./db.js";
 
 dotenv.config();
 
@@ -155,6 +155,20 @@ app.get("/api/report/:id", async (req, res) => {
 app.get("/api/reports/:username", async (req, res) => {
   try {
     res.json(await listReportsForUser(req.params.username));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Public dashboard feed: most recent reports across everyone who has run an
+// analysis. This is intentionally public — anyone who runs an analysis on a
+// username should know the result may appear here.
+app.get("/api/dashboard", async (req, res) => {
+  try {
+    const limit = Math.min(parseInt(req.query.limit) || 30, 100);
+    const reports = await listRecentReports(limit);
+    res.json(reports);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: err.message });

@@ -54,4 +54,16 @@ export async function listReportsForUser(username) {
   return result.rows;
 }
 
+// Public feed: most recent reports across ALL users, for a dashboard view.
+// Returns full report_json so the frontend can render each card's scores and
+// expand to the full breakdown without a second fetch per card.
+export async function listRecentReports(limit = 30) {
+  await ensureInitialized();
+  const result = await pool.query(
+    "SELECT id, username, created_at, report_json FROM reports ORDER BY created_at DESC LIMIT $1",
+    [limit]
+  );
+  return result.rows;
+}
+
 export default pool;
