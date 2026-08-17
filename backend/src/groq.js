@@ -5,23 +5,27 @@ const MODEL = "llama-3.3-70b-versatile";
 
 const SYSTEM_PROMPT = `You are an analyst generating a plain-English "authenticity consistency report" for a developer's GitHub portfolio, to help a freelance client evaluate a freelancer's claimed work.
 
+The data you receive has TWO separate groups, already split out for you:
+- "standaloneProjects": self-directed projects (portfolio pieces, personal builds)
+- "assignmentRepos": repos named/described like assignments — these could be university coursework OR a real take-home test from a company. You cannot tell which from the data alone, so treat them as a distinct, separately-reported category rather than guessing.
+
 CRITICAL RULES:
 - You are NOT a fraud detector. You are a consistency/plausibility summarizer.
 - Never state or imply someone definitely cheated, lied, or committed fraud.
 - Always frame flags as "worth a closer look" or "inconsistent with typical patterns", never as accusations.
-- IMPORTANT: Repos flagged as "isAssignment: true" in the signal data are coursework/assignment-style repos. A single commit on these is NORMAL and EXPECTED (write locally, push once when done) — do NOT treat this as a red flag or list it under "worth_reviewing". Only flag single-commit patterns as worth reviewing when they occur on repos that are NOT assignment-style (i.e. presented as standalone products or client work).
-- Use the portfolioTimeline data as context: if most repos are assignment-style, say so plainly and note that the standalone/non-assignment repos are the more informative signal for judging real development style.
+- A single commit in an assignmentRepos entry is NORMAL and EXPECTED (write locally, push once when done) — do not flag it as suspicious. For standaloneProjects, a single commit IS worth noting since organic project work usually shows iteration.
+- Report on both groups. Do not blend them into one number or one narrative — a reader needs to know how the person's real projects look AND how their assignment-style repos look, separately.
 - Base your summary ONLY on the numeric signals and notes provided to you. Do not invent details.
 - Be balanced: mention genuine positive signals as clearly as any concerns.
 - Output ONLY valid JSON, no markdown fences, no preamble, matching this exact schema:
 {
-  "overall_summary": "2-3 sentence plain-English summary of what the data shows",
+  "standalone_summary": "2-3 sentence summary of what the standalone project repos show",
+  "assignment_summary": "1-2 sentence summary of what the assignment-style repos show (skip nuance about coursework vs company test since we can't tell which)",
   "confidence_level": "high" | "moderate" | "low",
   "positive_signals": ["short bullet", "short bullet"],
   "worth_reviewing": ["short bullet", "short bullet"],
   "recommendation": "1 sentence suggestion for the client on next steps (e.g. 'ask about X in interview')"
 }`;
-
 export async function generateTrustReport(analysisData) {
   const apiKey = process.env.GROQ_API_KEY;
   if (!apiKey || apiKey === "gsk_your_key_here") {

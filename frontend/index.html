@@ -163,16 +163,44 @@ async function runAnalysis() {
 
 function renderReport(data) {
   const { aiReport, rawAnalysis } = data;
-  const avgScore = rawAnalysis.crossRepoConsistency.averageSignalScore;
+  const sp = rawAnalysis.standaloneProjects;
+  const ar = rawAnalysis.assignmentRepos;
+  const standaloneScore = sp.consistency ? sp.consistency.averageSignalScore : null;
+  const assignmentScore = ar.consistency ? ar.consistency.averageSignalScore : null;
+
+  function repoListHtml(repoAnalyses) {
+    return repoAnalyses.map(r => `
+      <div class="repo-item">
+        <div class="repo-name">${r.repo} <span class="score-badge ${scoreClass(r.overallSignalScore)}">${r.overallSignalScore}/100</span></div>
+        <div class="signal-row"><span>Commit cadence</span><span>${r.signals.commitCadence.note}</span></div>
+        <div class="signal-row"><span>Message quality</span><span>${r.signals.commitMessages.note}</span></div>
+        <div class="signal-row"><span>Author consistency</span><span>${r.signals.authorConsistency.note}</span></div>
+        <div class="signal-row"><span>Timeline plausibility</span><span>${r.signals.timelinePlausibility.note}</span></div>
+      </div>
+    `).join('');
+  }
 
   let html = `
     <div class="card">
-      <h2>Summary for @${data.username}
-        <span class="score-badge ${scoreClass(avgScore)}">${avgScore}/100</span>
+      <h2>@${data.username} — Two separate scores</h2>
+      <p style="font-size:0.85rem;color:var(--muted)">Standalone projects and assignment-style repos are scored separately, since they follow different normal patterns (assignments are typically pushed once; standalone projects usually show iteration).</p>
+    </div>
+
+    <div class="card">
+      <h2>🚀 Standalone Projects
+        ${standaloneScore !== null ? `<span class="score-badge ${scoreClass(standaloneScore)}">${standaloneScore}/100</span>` : '<span class="score-badge score-warn">No data</span>'}
       </h2>
-      <p>${aiReport.overall_summary}</p>
-      <p style="font-size:0.85rem;color:var(--muted)">Confidence: <strong>${aiReport.confidence_level}</strong> · ${rawAnalysis.reposAnalyzed} of ${rawAnalysis.substantiveRepoCount} substantive repos analyzed (${rawAnalysis.totalNonForkRepos} total non-fork repos found)</p>
-      ${rawAnalysis.skippedRepos && rawAnalysis.skippedRepos.length ? `<p style="font-size:0.8rem;color:var(--muted)">Skipped ${rawAnalysis.skippedRepos.length} empty/unreadable repo(s): ${rawAnalysis.skippedRepos.map(s => s.repo).join(', ')}</p>` : ''}
+      <p style="font-size:0.85rem;color:var(--muted)">${sp.analyzedCount} of ${sp.repoCount} standalone repos analyzed</p>
+      <p>${aiReport.standalone_summary || 'No standalone project repos found to analyze.'}</p>
+    </div>
+
+    <div class="card">
+      <h2>📋 Assignment-Style Repos
+        ${assignmentScore !== null ? `<span class="score-badge ${scoreClass(assignmentScore)}">${assignmentScore}/100</span>` : '<span class="score-badge score-warn">No data</span>'}
+      </h2>
+      <p style="font-size:0.85rem;color:var(--muted)">${ar.analyzedCount} of ${ar.repoCount} assignment-style repos analyzed</p>
+      <p style="font-size:0.8rem;color:var(--accent)">ℹ️ Could be coursework or a real take-home test from a company — can't tell which from repo data alone, so this is reported separately rather than guessed at.</p>
+      <p>${aiReport.assignment_summary || 'No assignment-style repos found.'}</p>
     </div>
 
     <div class="card">
@@ -191,16 +219,13 @@ function renderReport(data) {
     </div>
 
     <div class="card">
-      <h2>Per-repo breakdown</h2>
-      ${rawAnalysis.repoAnalyses.map(r => `
-        <div class="repo-item">
-          <div class="repo-name">${r.repo} <span class="score-badge ${scoreClass(r.overallSignalScore)}">${r.overallSignalScore}/100</span></div>
-          <div class="signal-row"><span>Commit cadence</span><span>${r.signals.commitCadence.note}</span></div>
-          <div class="signal-row"><span>Message quality</span><span>${r.signals.commitMessages.note}</span></div>
-          <div class="signal-row"><span>Author consistency</span><span>${r.signals.authorConsistency.note}</span></div>
-          <div class="signal-row"><span>Timeline plausibility</span><span>${r.signals.timelinePlausibility.note}</span></div>
-        </div>
-      `).join('')}
+      <h2>Standalone project breakdown</h2>
+      ${sp.repoAnalyses.length ? repoListHtml(sp.repoAnalyses) : '<p style="color:var(--muted);font-size:0.9rem">None found.</p>'}
+    </div>
+
+    <div class="card">
+      <h2>Assignment-style repo breakdown</h2>
+      ${ar.repoAnalyses.length ? repoListHtml(ar.repoAnalyses) : '<p style="color:var(--muted);font-size:0.9rem">None found.</p>'}
     </div>
   `;
   document.getElementById('results').innerHTML = html;

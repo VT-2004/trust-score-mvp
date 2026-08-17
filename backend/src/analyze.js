@@ -9,7 +9,7 @@ function daysBetween(a, b) {
 
 // Detects whether a repo looks like coursework/an assignment submission rather than
 // a standalone product/portfolio project, based on naming conventions.
-function looksLikeAssignment(repo) {
+export function looksLikeAssignment(repo) {
   const text = `${repo.name} ${repo.description || ""}`.toLowerCase();
   return /(assignment|exercise|homework|lab-|-lab|practice|coursework|tutorial|bootcamp)/.test(
     text
@@ -151,8 +151,8 @@ export function crossRepoConsistency(repoAnalyses, repos) {
   const variance =
     scores.length > 1
       ? Math.round(
-          scores.reduce((sum, s) => sum + Math.pow(s - avgScore, 2), 0) / scores.length
-        )
+        scores.reduce((sum, s) => sum + Math.pow(s - avgScore, 2), 0) / scores.length
+      )
       : 0;
 
   return {
