@@ -16,19 +16,17 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Serve the simple frontend
 app.use(express.static(path.join(__dirname, "..", "..", "frontend")));
 
-// Health check
 app.get("/api/health", (req, res) => {
   res.json({
     status: "ok",
     githubTokenSet: !!process.env.GITHUB_TOKEN && process.env.GITHUB_TOKEN !== "ghp_your_token_here",
     groqKeySet: !!process.env.GROQ_API_KEY && process.env.GROQ_API_KEY !== "gsk_your_key_here",
+    databaseUrlSet: !!process.env.DATABASE_URL,
   });
 });
 
-// Main analysis endpoint: given a GitHub username, build a full trust report
 app.post("/api/analyze", async (req, res) => {
   const { username, maxReposToAnalyze = 20 } = req.body;
   if (!username) {
@@ -43,17 +41,9 @@ app.post("/api/analyze", async (req, res) => {
       return res.status(404).json({ error: "No public, non-fork repositories found for this user." });
     }
 
-    // Filter out trivially small repos (near-empty, size in KB from GitHub API)
-    // before spending time analyzing them — keeps the score meaningful instead of
-    // diluted by placeholder/empty repos.
-    const substantiveRepos = allRepos.filter((r) => r.size > 5); // >5KB rules out empty/README-only repos
+    const substantiveRepos = allRepos.filter((r) => r.size > 5);
     const reposToConsider = substantiveRepos.length > 0 ? substantiveRepos : allRepos;
 
-    // Split into coursework/assignment-style repos vs standalone projects.
-    // Both get scored — but SEPARATELY and shown separately. An "-Assignment" repo
-    // could be university coursework, or it could be a real take-home test from a
-    // company (which is a genuinely strong signal). We don't guess which; we just
-    // avoid mixing the two into one misleading blended number.
     const assignmentRepos = reposToConsider.filter(looksLikeAssignment);
     const standaloneRepos = reposToConsider.filter((r) => !looksLikeAssignment(r));
 
@@ -99,9 +89,9 @@ app.post("/api/analyze", async (req, res) => {
     const analysisPayload = {
       username,
       profileCreatedAt: profile.created_at,
-      publicRepoCount: profile.public_repos,          // GitHub's own total (includes forks/archived)
-      totalNonForkRepos: allRepos.length,               // all non-fork repos found
-      substantiveRepoCount: substantiveRepos.length,     // repos worth analyzing (not near-empty)
+      publicRepoCount: profile.public_repos,
+      totalNonForkRepos: allRepos.length,
+      substantiveRepoCount: substantiveRepos.length,
 
       standaloneProjects: {
         repoCount: standaloneRepos.length,
@@ -122,12 +112,10 @@ app.post("/api/analyze", async (req, res) => {
       portfolioTimeline: timeline,
     };
 
-    // AI reasoning layer (Groq)
     let aiReport;
     try {
       aiReport = await generateTrustReport(analysisPayload);
     } catch (aiError) {
-      // Degrade gracefully: still return the raw signal data even if AI layer fails
       aiReport = {
         overall_summary: `AI reasoning layer unavailable: ${aiError.message}`,
         confidence_level: "unavailable",
@@ -144,7 +132,7 @@ app.post("/api/analyze", async (req, res) => {
       rawAnalysis: analysisPayload,
     };
 
-    const reportId = saveReport(username, fullReport);
+    const reportId = await saveReport(username, fullReport);
 
     res.json({ reportId, ...fullReport });
   } catch (err) {
@@ -153,15 +141,24 @@ app.post("/api/analyze", async (req, res) => {
   }
 });
 
-// Fetch a previously generated report by ID (for shareable links)
-app.get("/api/report/:id", (req, res) => {
-  const report = getReport(req.params.id);
-  if (!report) return res.status(404).json({ error: "Report not found" });
-  res.json(report);
+app.get("/api/report/:id", async (req, res) => {
+  try {
+    const report = await getReport(req.params.id);
+    if (!report) return res.status(404).json({ error: "Report not found" });
+    res.json(report);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
 });
 
-app.get("/api/reports/:username", (req, res) => {
-  res.json(listReportsForUser(req.params.username));
+app.get("/api/reports/:username", async (req, res) => {
+  try {
+    res.json(await listReportsForUser(req.params.username));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
 });
 
 const PORT = process.env.PORT || 3001;

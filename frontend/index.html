@@ -212,10 +212,11 @@ async function checkHealth() {
     const res = await fetch(`${API_BASE}/api/health`);
     const data = await res.json();
     const banner = document.getElementById('statusBanner');
-    if (!data.githubTokenSet || !data.groqKeySet) {
+    if (!data.githubTokenSet || !data.groqKeySet || !data.databaseUrlSet) {
       const missing = [];
       if (!data.githubTokenSet) missing.push('GITHUB_TOKEN');
       if (!data.groqKeySet) missing.push('GROQ_API_KEY');
+      if (!data.databaseUrlSet) missing.push('DATABASE_URL');
       banner.innerHTML = `<div class="status-banner" style="border-color:var(--warn); color:var(--warn)">
         ⚠️ Missing in backend/.env: ${missing.join(', ')}. Add them and restart the server. See backend/.env.example for instructions.
       </div>`;
