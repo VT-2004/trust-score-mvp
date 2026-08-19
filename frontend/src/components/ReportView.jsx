@@ -27,7 +27,6 @@ export default function ReportView({ reportData, onRefresh, isRefreshing, apiBas
   const [copiedLink, setCopiedLink] = useState(false);
   const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
   const [hasUnlockedDownload, setHasUnlockedDownload] = useState(false);
-  const [isBookmarked, setIsBookmarked] = useState(false);
 
   if (!reportData) return null;
 
@@ -36,40 +35,6 @@ export default function ReportView({ reportData, onRefresh, isRefreshing, apiBas
   const ar = rawAnalysis?.assignmentRepos || { repoAnalyses: [], repoCount: 0 };
   const standaloneScore = sp.consistency ? sp.consistency.averageSignalScore : (sp.repoAnalyses.length ? sp.repoAnalyses[0].overallSignalScore : 70);
   const overallScore = standaloneScore || 70;
-
-  useEffect(() => {
-    try {
-      const saved = JSON.parse(localStorage.getItem('trustscore_shortlist') || '[]');
-      setIsBookmarked(saved.some(item => item.username.toLowerCase() === username.toLowerCase()));
-    } catch {
-      setIsBookmarked(false);
-    }
-  }, [username]);
-
-  const handleToggleBookmark = () => {
-    try {
-      const saved = JSON.parse(localStorage.getItem('trustscore_shortlist') || '[]');
-      if (isBookmarked) {
-        const filtered = saved.filter(item => item.username.toLowerCase() !== username.toLowerCase());
-        localStorage.setItem('trustscore_shortlist', JSON.stringify(filtered));
-        setIsBookmarked(false);
-      } else {
-        const newItem = {
-          id: `${username}-${Date.now()}`,
-          username,
-          score: overallScore,
-          addedAt: new Date().toISOString(),
-          recruiterNote: '',
-          reportData
-        };
-        saved.unshift(newItem);
-        localStorage.setItem('trustscore_shortlist', JSON.stringify(saved));
-        setIsBookmarked(true);
-      }
-    } catch (err) {
-      console.error(err);
-    }
-  };
 
   const triggerDownloadAction = () => {
     window.print();
@@ -204,28 +169,6 @@ export default function ReportView({ reportData, onRefresh, isRefreshing, apiBas
         )}
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <button
-            onClick={handleToggleBookmark}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '6px 12px',
-              borderRadius: 'var(--radius-full)',
-              background: isBookmarked ? 'var(--accent-dim)' : 'var(--surface)',
-              border: isBookmarked ? '1px solid var(--accent)' : '1px solid var(--border)',
-              color: isBookmarked ? 'var(--accent-text)' : 'var(--text-main)',
-              fontSize: '0.82rem',
-              fontWeight: 600,
-              cursor: 'pointer',
-              boxShadow: 'var(--shadow-sm)',
-              transition: 'all 0.15s ease'
-            }}
-          >
-            <Bookmark size={14} fill={isBookmarked ? 'var(--accent)' : 'none'} color={isBookmarked ? 'var(--accent)' : 'currentColor'} />
-            <span>{isBookmarked ? 'Shortlisted' : 'Bookmark Candidate'}</span>
-          </button>
-
           <div style={{
             fontSize: '0.82rem',
             color: 'var(--text-muted)',

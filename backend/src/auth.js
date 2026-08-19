@@ -7,7 +7,7 @@ const JWT_SECRET = process.env.JWT_SECRET || 'trustscore-super-secret-key-2026';
 // In-memory fallback if Postgres is temporarily unreachable during local dev
 const memoryUsers = new Map();
 
-export async function signupUser({ name, email, password, role }) {
+export async function signupUser({ name, email, password }) {
   if (!email || !password) {
     throw new Error('Email and password are required.');
   }
@@ -25,7 +25,7 @@ export async function signupUser({ name, email, password, role }) {
       name: name?.trim() || cleanEmail.split('@')[0],
       email: cleanEmail,
       passwordHash,
-      role: role || 'Recruiter',
+      role: 'User',
       avatar
     });
 
@@ -42,7 +42,7 @@ export async function signupUser({ name, email, password, role }) {
       name: name?.trim() || cleanEmail.split('@')[0],
       email: cleanEmail,
       password_hash: passwordHash,
-      role: role || 'Recruiter',
+      role: 'User',
       avatar,
       created_at: new Date().toISOString()
     };

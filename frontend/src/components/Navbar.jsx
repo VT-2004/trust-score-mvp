@@ -6,18 +6,17 @@ import {
   User,
   Search,
   History,
-  BarChart3,
-  Star,
   LogOut,
   GitCompare,
-  Bookmark,
   Activity,
-  FileText
+  FileText,
+  Zap,
+  LogIn
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext.jsx';
 
 export default function Navbar({ activeTab, onSelectTab, theme, onToggleTheme, isOnline, apiBase }) {
-  const { user, setIsAuthModalOpen, logout } = useAuth();
+  const { user, openLogin, logout, remainingFreeTests } = useAuth();
   const [rateLimit, setRateLimit] = useState(null);
 
   useEffect(() => {
@@ -37,10 +36,7 @@ export default function Navbar({ activeTab, onSelectTab, theme, onToggleTheme, i
     { id: 'analyzer', label: 'Analyzer', icon: Search },
     { id: 'resume', label: 'Resume Verifier', icon: FileText },
     { id: 'compare', label: 'Compare Repos', icon: GitCompare },
-    { id: 'shortlist', label: 'Shortlist', icon: Bookmark },
-    { id: 'history', label: 'Tests History', icon: History },
-    { id: 'analytics', label: 'Analytics', icon: BarChart3 },
-    { id: 'reviews', label: 'Reviews', icon: Star },
+    { id: 'history', label: 'My History', icon: History },
   ];
 
   return (
@@ -72,10 +68,7 @@ export default function Navbar({ activeTab, onSelectTab, theme, onToggleTheme, i
               alignItems: 'center',
               gap: '10px',
               textDecoration: 'none',
-              color: 'var(--text-main)',
-              fontWeight: 800,
-              fontSize: '1.18rem',
-              letterSpacing: '-0.02em',
+              color: 'inherit',
               background: 'none',
               border: 'none',
               cursor: 'pointer',
@@ -85,21 +78,47 @@ export default function Navbar({ activeTab, onSelectTab, theme, onToggleTheme, i
             <div style={{
               width: '32px',
               height: '32px',
+              borderRadius: '8px',
               background: 'linear-gradient(135deg, #4f46e5, #10b981)',
-              borderRadius: '10px',
               display: 'grid',
               placeItems: 'center',
               color: '#fff',
-              boxShadow: '0 4px 12px rgba(16, 185, 129, 0.25)'
+              boxShadow: '0 2px 8px rgba(79, 70, 229, 0.3)'
             }}>
-              <ShieldCheck size={18} strokeWidth={2.5} />
+              <ShieldCheck size={18} />
             </div>
-            <span>TrustScore <span style={{ color: 'var(--text-muted)', fontWeight: 500, fontSize: '0.88rem' }}>AI</span></span>
+            <div style={{ textAlign: 'left' }}>
+              <span style={{ fontWeight: 800, fontSize: '1.05rem', letterSpacing: '-0.02em' }}>
+                Trust<span style={{ color: '#4f46e5' }}>Score</span>
+              </span>
+              <span style={{
+                marginLeft: '6px',
+                fontSize: '0.66rem',
+                fontWeight: 700,
+                padding: '2px 6px',
+                borderRadius: '4px',
+                background: 'var(--surface-raised)',
+                color: 'var(--text-subtle)',
+                border: '1px solid var(--border)',
+                textTransform: 'uppercase'
+              }}>
+                PRO
+              </span>
+            </div>
           </button>
 
-          {/* Section Navigation Tabs */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '2px', flexWrap: 'wrap' }}>
-            {navItems.map(item => {
+          {/* Nav Items */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            background: 'var(--surface-raised)',
+            padding: '3px',
+            borderRadius: 'var(--radius-full)',
+            border: '1px solid var(--border)',
+            gap: '2px',
+            overflowX: 'auto'
+          }}>
+            {navItems.map((item) => {
               const Icon = item.icon;
               const isActive = activeTab === item.id;
               return (
@@ -107,21 +126,22 @@ export default function Navbar({ activeTab, onSelectTab, theme, onToggleTheme, i
                   key={item.id}
                   onClick={() => onSelectTab(item.id)}
                   style={{
-                    padding: '6px 12px',
-                    borderRadius: 'var(--radius-full)',
-                    background: isActive ? 'var(--surface-raised)' : 'transparent',
-                    border: isActive ? '1px solid var(--border)' : '1px solid transparent',
-                    color: isActive ? 'var(--text-main)' : 'var(--text-muted)',
-                    fontSize: '0.82rem',
-                    fontWeight: 600,
-                    cursor: 'pointer',
                     display: 'inline-flex',
                     alignItems: 'center',
-                    gap: '5px',
-                    transition: 'all 0.15s ease'
+                    gap: '6px',
+                    padding: '6px 14px',
+                    borderRadius: 'var(--radius-full)',
+                    border: 'none',
+                    background: isActive ? '#0f172a' : 'transparent',
+                    color: isActive ? '#ffffff' : 'var(--text-muted)',
+                    fontSize: '0.82rem',
+                    fontWeight: isActive ? 700 : 500,
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease',
+                    whiteSpace: 'nowrap'
                   }}
                 >
-                  <Icon size={13} color={isActive ? '#4f46e5' : 'currentColor'} />
+                  <Icon size={14} color={isActive ? '#38bdf8' : 'currentColor'} />
                   <span>{item.label}</span>
                 </button>
               );
@@ -129,125 +149,128 @@ export default function Navbar({ activeTab, onSelectTab, theme, onToggleTheme, i
           </div>
         </div>
 
-        {/* Right Actions */}
+        {/* Right Actions: Free Attempts, Live Quota, Theme & Auth */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          {/* Live GitHub Rate Limit Meter */}
-          {rateLimit && (
-            <div
-              title={`GitHub API Quota: ${rateLimit.remaining} of ${rateLimit.limit} requests left. Resets at ${new Date(rateLimit.resetDate).toLocaleTimeString()}`}
+          {/* Guest Free Quota Badge */}
+          {!user && (
+            <button
+              onClick={openLogin}
+              title="Sign in or register for unlimited tests"
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: '5px',
-                padding: '4px 8px',
+                padding: '5px 12px',
+                borderRadius: 'var(--radius-full)',
+                background: remainingFreeTests > 0
+                  ? 'linear-gradient(135deg, rgba(79, 70, 229, 0.1), rgba(16, 185, 129, 0.1))'
+                  : 'rgba(239, 68, 68, 0.1)',
+                border: remainingFreeTests > 0
+                  ? '1px solid rgba(79, 70, 229, 0.25)'
+                  : '1px solid rgba(239, 68, 68, 0.3)',
+                color: remainingFreeTests > 0 ? '#4f46e5' : 'var(--danger-text)',
+                fontSize: '0.76rem',
+                fontWeight: 700,
+                cursor: 'pointer'
+              }}
+            >
+              <Zap size={13} color={remainingFreeTests > 0 ? '#10b981' : '#ef4444'} />
+              <span>{remainingFreeTests}/5 Free Tests</span>
+            </button>
+          )}
+
+          {/* GitHub API Rate-Limit Indicator */}
+          {rateLimit && (
+            <div
+              title={`Live GitHub API limit: ${rateLimit.remaining}/${rateLimit.limit}. Resets at ${new Date(rateLimit.reset * 1000).toLocaleTimeString()}`}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '5px',
+                padding: '5px 10px',
                 borderRadius: 'var(--radius-full)',
                 background: 'var(--surface-raised)',
                 border: '1px solid var(--border)',
-                fontSize: '0.72rem',
+                fontSize: '0.74rem',
+                color: rateLimit.remaining < 200 ? 'var(--warn-text)' : 'var(--text-muted)',
                 fontFamily: 'var(--font-mono)',
-                color: rateLimit.remaining > 500 ? 'var(--accent-text)' : 'var(--warn-text)'
+                fontWeight: 600
               }}
             >
-              <Activity size={12} />
-              <span>GH: {rateLimit.remaining}/{rateLimit.limit}</span>
+              <Activity size={12} color={rateLimit.remaining < 200 ? '#f59e0b' : '#10b981'} />
+              <span>GH: {rateLimit.remaining.toLocaleString()}</span>
             </div>
           )}
 
-          <div style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '5px',
-            padding: '4px 8px',
-            borderRadius: 'var(--radius-full)',
-            background: 'var(--surface)',
-            border: '1px solid var(--border)',
-            fontSize: '0.74rem',
-            fontWeight: 600,
-            color: 'var(--text-muted)'
-          }}>
-            <span style={{
-              width: '6px',
-              height: '6px',
-              borderRadius: '50%',
-              backgroundColor: isOnline ? 'var(--accent)' : 'var(--warn)',
-              boxShadow: isOnline ? '0 0 6px var(--accent)' : 'none'
-            }} />
-            <span>{isOnline ? 'Online' : 'Offline'}</span>
-          </div>
-
+          {/* Theme Toggle */}
           <button
             onClick={onToggleTheme}
             style={{
-              background: 'var(--surface-raised)',
+              padding: '7px',
+              borderRadius: 'var(--radius-sm)',
               border: '1px solid var(--border)',
-              color: 'var(--text-main)',
-              width: '32px',
-              height: '32px',
-              borderRadius: 'var(--radius-full)',
-              display: 'grid',
-              placeItems: 'center',
+              background: 'var(--surface-raised)',
+              color: 'var(--text-muted)',
               cursor: 'pointer',
-              transition: 'all 0.15s ease'
+              display: 'grid',
+              placeItems: 'center'
             }}
-            title="Toggle theme"
-            aria-label="Toggle theme"
+            title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
           >
             {theme === 'dark' ? <Sun size={15} /> : <Moon size={15} />}
           </button>
 
-          {/* User Account / Sign In */}
+          {/* User Auth Info */}
           {user ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                padding: '3px 8px 3px 5px',
-                borderRadius: 'var(--radius-full)',
-                background: 'var(--surface-raised)',
-                border: '1px solid var(--border)',
-                fontSize: '0.78rem',
-                fontWeight: 600
-              }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '7px' }}>
                 <img
-                  src={user.avatar}
+                  src={user.avatar || `https://api.dicebear.com/7.x/bottts/svg?seed=${user.email}`}
                   alt={user.name}
-                  style={{ width: '20px', height: '20px', borderRadius: '50%' }}
+                  style={{ width: '28px', height: '28px', borderRadius: '50%', border: '1.5px solid var(--border)', objectFit: 'cover' }}
                 />
-                <span>{user.name.split(' ')[0]}</span>
+                <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.1 }}>
+                  <span style={{ fontSize: '0.82rem', fontWeight: 700 }}>{user.name}</span>
+                  <span style={{ fontSize: '0.68rem', color: '#10b981', fontWeight: 600 }}>Unlimited</span>
+                </div>
               </div>
+
               <button
                 onClick={logout}
                 style={{
-                  background: 'transparent',
-                  border: 'none',
+                  padding: '6px',
+                  borderRadius: 'var(--radius-sm)',
+                  border: '1px solid var(--border)',
+                  background: 'var(--surface-raised)',
                   color: 'var(--text-muted)',
                   cursor: 'pointer',
-                  padding: '4px'
+                  display: 'grid',
+                  placeItems: 'center'
                 }}
-                title="Log out"
+                title="Log Out"
               >
-                <LogOut size={15} />
+                <LogOut size={14} />
               </button>
             </div>
           ) : (
             <button
-              onClick={() => setIsAuthModalOpen(true)}
+              onClick={openLogin}
               style={{
-                padding: '6px 12px',
-                borderRadius: 'var(--radius-full)',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '7px 14px',
+                borderRadius: 'var(--radius-md)',
                 background: '#0f172a',
                 color: '#fff',
                 fontWeight: 700,
-                fontSize: '0.78rem',
+                fontSize: '0.84rem',
                 border: 'none',
                 cursor: 'pointer',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '5px'
+                boxShadow: '0 2px 8px rgba(15, 23, 42, 0.2)'
               }}
             >
-              <User size={13} />
+              <LogIn size={14} />
               <span>Sign In</span>
             </button>
           )}

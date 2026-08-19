@@ -2,8 +2,10 @@ import React, { useState } from 'react';
 import { GitCompare, ArrowRight, ShieldCheck, AlertCircle, CheckCircle2, Award, Zap, Code, Users, FileText } from 'lucide-react';
 import ScoreRing from './ScoreRing.jsx';
 import ResumeVerifierView from './ResumeVerifierView.jsx';
+import { useAuth } from '../context/AuthContext.jsx';
 
 export default function CandidateCompareView({ apiBase, onSelectReport }) {
+  const { canPerformTest, requireAuthForLimit, recordTest } = useAuth();
   const [compareMode, setCompareMode] = useState('profiles'); // 'profiles' | 'resume'
   const [userA, setUserA] = useState('');
   const [userB, setUserB] = useState('');
@@ -16,6 +18,11 @@ export default function CandidateCompareView({ apiBase, onSelectReport }) {
 
   const fetchCandidate = async (username, isSlotA) => {
     if (!username.trim()) return;
+    if (!canPerformTest()) {
+      requireAuthForLimit('You have used your 5 free tests. Please create a free account to compare more repositories.');
+      return;
+    }
+
     const cleanUser = username.trim().replace(/^@/, '');
     if (isSlotA) {
       setLoadingA(true);
@@ -37,6 +44,7 @@ export default function CandidateCompareView({ apiBase, onSelectReport }) {
       }
       if (isSlotA) setDataA(data);
       else setDataB(data);
+      recordTest(data);
     } catch (err) {
       if (isSlotA) setErrorA(err.message);
       else setErrorB(err.message);

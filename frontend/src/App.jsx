@@ -6,7 +6,6 @@ import ReportView from './components/ReportView.jsx';
 import RecentFeed from './components/RecentFeed.jsx';
 import CandidateCompareView from './components/CandidateCompareView.jsx';
 import ResumeVerifierView from './components/ResumeVerifierView.jsx';
-import ShortlistView from './components/ShortlistView.jsx';
 import TestsHistoryView from './components/TestsHistoryView.jsx';
 import AnalyticsDashboard from './components/AnalyticsDashboard.jsx';
 import ReviewsView from './components/ReviewsView.jsx';
@@ -21,7 +20,8 @@ const API_BASE = isLocal
   : (window.location.hostname.includes('onrender.com') ? '' : RENDER_BACKEND);
 
 function DashboardContent() {
-  const [activeTab, setActiveTab] = useState('analyzer'); // 'analyzer' | 'result' | 'resume' | 'compare' | 'shortlist' | 'history' | 'analytics' | 'reviews'
+  const { canPerformTest, requireAuthForLimit, recordTest } = useAuth();
+  const [activeTab, setActiveTab] = useState('analyzer'); // 'analyzer' | 'result' | 'resume' | 'compare' | 'history'
   const [previousTab, setPreviousTab] = useState('analyzer');
   const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'light');
   const [isOnline, setIsOnline] = useState(true);
@@ -69,6 +69,13 @@ function DashboardContent() {
   }, []);
 
   const handleSearch = async (username, forceRefresh = false) => {
+    if (!username || !username.trim()) return;
+
+    if (!canPerformTest()) {
+      requireAuthForLimit('You have used your 5 free analyses. Please create a free account to continue auditing GitHub candidates.');
+      return;
+    }
+
     if (forceRefresh) {
       setIsRefreshing(true);
     } else {
@@ -90,6 +97,7 @@ function DashboardContent() {
       } else {
         setReportData(data);
         setNewlyCompletedUser(data.username);
+        recordTest(data);
         if (data.reportId) {
           window.history.pushState({}, '', `${window.location.pathname}?report=${data.reportId}`);
         }
@@ -137,7 +145,7 @@ function DashboardContent() {
       </div>
 
       <main style={{ flex: 1, maxWidth: '1080px', width: '100%', margin: '0 auto', padding: '36px 24px 80px' }}>
-        {/* TAB 1: Analyzer / Home */}
+        {/* TAB 1: Analyzer / Landing Page */}
         {activeTab === 'analyzer' && (
           <>
             <HeroSearch onSearch={(user) => handleSearch(user, false)} isLoading={isLoading} />
@@ -189,7 +197,7 @@ function DashboardContent() {
               </div>
             )}
 
-            {/* Newly Completed Analysis Prompt: Click to View Results */}
+            {/* Newly Completed Analysis Prompt */}
             {newlyCompletedUser && reportData && !isLoading && (
               <div style={{
                 background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.08), rgba(79, 70, 229, 0.08))',
@@ -251,8 +259,22 @@ function DashboardContent() {
               </div>
             )}
 
+            {/* 1. Private User's Recent Audits */}
             <div className="no-print">
-              <RecentFeed apiBase={API_BASE} />
+              <RecentFeed onSelectCandidate={(user) => handleSearch(user, false)} />
+            </div>
+
+            {/* 2. Platform Analytics Dashboard on Landing Page */}
+            <div style={{ marginTop: '48px' }}>
+              <AnalyticsDashboard apiBase={API_BASE} />
+            </div>
+
+            {/* 3. Community Reviews & Ratings on Landing Page */}
+            <div style={{ marginTop: '48px' }}>
+              <ReviewsView
+                apiBase={API_BASE}
+                onOpenFeedbackModal={() => setIsFeedbackModalOpen(true)}
+              />
             </div>
           </>
         )}
@@ -284,35 +306,17 @@ function DashboardContent() {
           />
         )}
 
-        {/* TAB 4: Recruiter Shortlist & Notes */}
-        {activeTab === 'shortlist' && (
-          <ShortlistView
-            onSelectReport={handleSelectReport}
-          />
-        )}
-
-        {/* TAB 5: Tests History & Results */}
+        {/* TAB 5: My Private Tests History */}
         {activeTab === 'history' && (
           <TestsHistoryView
-            apiBase={API_BASE}
-            onSelectReport={handleSelectReport}
+            onSelectCandidate={(user) => {
+              handleSearch(user, false);
+            }}
+            onNavigateToAnalyzer={() => setActiveTab('analyzer')}
           />
         )}
 
-        {/* TAB 6: Platform Analytics Dashboard */}
-        {activeTab === 'analytics' && (
-          <AnalyticsDashboard apiBase={API_BASE} />
-        )}
-
-        {/* TAB 7: Community Reviews & Ratings */}
-        {activeTab === 'reviews' && (
-          <ReviewsView
-            apiBase={API_BASE}
-            onOpenFeedbackModal={() => setIsFeedbackModalOpen(true)}
-          />
-        )}
-
-        {/* General Feedback Modal */}
+        {/* Feedback Modal */}
         <div className="no-print">
           <ReviewGateModal
             isOpen={isFeedbackModalOpen}

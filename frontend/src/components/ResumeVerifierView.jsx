@@ -23,8 +23,10 @@ import {
 } from 'lucide-react';
 import { parseResumeFile } from '../utils/pdfExtractor.js';
 import ScoreRing from './ScoreRing.jsx';
+import { useAuth } from '../context/AuthContext.jsx';
 
 export default function ResumeVerifierView({ apiBase }) {
+  const { canPerformTest, requireAuthForLimit, recordTest } = useAuth();
   const [targetRole, setTargetRole] = useState('Senior Full Stack / Frontend Engineer');
 
   // Candidate A State
@@ -118,6 +120,11 @@ Skills: React, Next.js, Tailwind CSS, TypeScript, Radix UI, UI/UX Design, Open S
       return;
     }
 
+    if (!canPerformTest()) {
+      requireAuthForLimit('You have used your 5 free tests. Please create a free account to compare candidate resumes.');
+      return;
+    }
+
     setIsLoading(true);
     setError(null);
     setResult(null);
@@ -157,6 +164,20 @@ Skills: React, Next.js, Tailwind CSS, TypeScript, Radix UI, UI/UX Design, Open S
       }
 
       setResult(data);
+      if (data.report?.candidateA) {
+        recordTest({
+          id: `candA-${Date.now()}`,
+          username: usernameA.trim(),
+          score: data.report.candidateA.ats_match_score || 80
+        });
+      }
+      if (data.report?.candidateB) {
+        recordTest({
+          id: `candB-${Date.now()}`,
+          username: usernameB.trim(),
+          score: data.report.candidateB.ats_match_score || 80
+        });
+      }
     } catch (err) {
       setError(err.message || 'Comparison failed. Free-tier backend might be starting up, please retry.');
     } finally {

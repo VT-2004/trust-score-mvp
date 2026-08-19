@@ -1,148 +1,122 @@
-import React, { useState, useEffect } from 'react';
-import { Activity, ChevronDown, ChevronUp } from 'lucide-react';
-import ReportView from './ReportView.jsx';
+import React from 'react';
+import { useAuth } from '../context/AuthContext.jsx';
+import { Clock, ShieldCheck, ArrowRight, Lock, Trash2 } from 'lucide-react';
 
-export default function RecentFeed({ apiBase }) {
-  const [reports, setReports] = useState([]);
-  const [expandedIndex, setExpandedIndex] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
+export default function RecentFeed({ onSelectCandidate }) {
+  const { localAudits, user } = useAuth();
 
-  useEffect(() => {
-    fetch(`${apiBase}/api/dashboard?limit=25`)
-      .then(res => res.json())
-      .then(data => {
-        if (Array.isArray(data)) {
-          setReports(data);
-        }
-        setIsLoading(false);
-      })
-      .catch(() => setIsLoading(false));
-  }, [apiBase]);
-
-  const toggleCard = (index) => {
-    setExpandedIndex(expandedIndex === index ? null : index);
-  };
-
-  const getScoreBadge = (score) => {
-    let color = 'var(--accent-text)';
-    let bg = 'var(--accent-dim)';
-    if (score < 45) {
-      color = 'var(--danger-text)';
-      bg = 'var(--danger-dim)';
-    } else if (score < 70) {
-      color = 'var(--warn-text)';
-      bg = 'var(--warn-dim)';
-    }
+  if (!localAudits || localAudits.length === 0) {
     return (
-      <span style={{
-        padding: '3px 10px',
-        borderRadius: 'var(--radius-full)',
-        fontSize: '0.78rem',
-        fontWeight: 700,
-        fontFamily: 'var(--font-mono)',
-        color,
-        background: bg
+      <div style={{
+        marginTop: '28px',
+        padding: '20px',
+        borderRadius: 'var(--radius-md)',
+        background: 'var(--surface-raised)',
+        border: '1px solid var(--border)',
+        textAlign: 'center'
       }}>
-        {score}/100
-      </span>
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', color: 'var(--text-muted)', fontSize: '0.86rem' }}>
+          <Lock size={14} color="#10b981" />
+          <span>Privacy Guaranteed: Your audit history is 100% private to your browser session & account.</span>
+        </div>
+      </div>
     );
-  };
+  }
 
   return (
-    <section style={{ marginTop: '56px' }}>
+    <div style={{ marginTop: '36px' }}>
       <div style={{
         display: 'flex',
-        justifyContent: 'space-between',
         alignItems: 'center',
+        justifyContent: 'space-between',
         marginBottom: '16px'
       }}>
-        <h2 style={{ fontSize: '1.2rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <Activity size={18} color="#4f46e5" />
-          <span>Recent Public Analyses</span>
-          <span style={{ color: 'var(--text-muted)', fontWeight: 400, fontSize: '0.9rem' }}>
-            ({reports.length})
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <Clock size={16} color="#4f46e5" />
+          <h3 style={{ fontSize: '1.05rem', fontWeight: 700 }}>Your Recent Analyses</h3>
+          <span style={{
+            fontSize: '0.72rem',
+            padding: '2px 8px',
+            borderRadius: 'var(--radius-full)',
+            background: 'var(--surface-raised)',
+            border: '1px solid var(--border)',
+            color: 'var(--text-muted)'
+          }}>
+            {localAudits.length} Private {localAudits.length === 1 ? 'Audit' : 'Audits'}
           </span>
-        </h2>
-        <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Live Feed</span>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.76rem', color: 'var(--text-muted)' }}>
+          <Lock size={12} color="#10b981" />
+          <span>Only visible to you</span>
+        </div>
       </div>
 
-      {isLoading ? (
-        <div style={{
-          background: 'var(--surface)',
-          border: '1px solid var(--border)',
-          borderRadius: 'var(--radius-md)',
-          padding: '24px',
-          textAlign: 'center',
-          color: 'var(--text-muted)'
-        }}>
-          Loading live feed…
-        </div>
-      ) : reports.length === 0 ? (
-        <div style={{
-          background: 'var(--surface)',
-          border: '1px solid var(--border)',
-          borderRadius: 'var(--radius-md)',
-          padding: '24px',
-          textAlign: 'center',
-          color: 'var(--text-muted)'
-        }}>
-          No analyses recorded yet. Run your first query above!
-        </div>
-      ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-          {reports.map((r, i) => {
-            const rj = r.report_json;
-            const sp = rj.rawAnalysis?.standaloneProjects;
-            const score = sp?.consistency ? sp.consistency.averageSignalScore : 75;
-            const isExpanded = expandedIndex === i;
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))',
+        gap: '12px'
+      }}>
+        {localAudits.slice(0, 6).map((item) => {
+          const score = item.score || 75;
+          const scoreColor = score >= 75 ? '#10b981' : score >= 50 ? '#f59e0b' : '#ef4444';
+          const formattedDate = item.createdAt ? new Date(item.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : 'Recently';
 
-            return (
-              <div
-                key={r.id || i}
-                style={{
-                  background: 'var(--surface)',
-                  border: '1px solid var(--border)',
-                  borderRadius: 'var(--radius-md)',
-                  overflow: 'hidden',
-                  transition: 'border-color 0.15s ease'
-                }}
-              >
-                <div
-                  onClick={() => toggleCard(i)}
-                  style={{
-                    padding: '14px 18px',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    userSelect: 'none'
-                  }}
-                >
-                  <div>
-                    <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: '0.95rem' }}>
-                      @{r.username}
-                    </div>
-                    <div style={{ fontSize: '0.78rem', color: 'var(--text-subtle)', marginTop: '2px' }}>
-                      {new Date(r.created_at).toLocaleDateString()} · {new Date(r.created_at).toLocaleTimeString()}
-                    </div>
-                  </div>
-
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    {getScoreBadge(score)}
-                    {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                  </div>
+          return (
+            <div
+              key={item.id || item.username}
+              onClick={() => onSelectCandidate(item.username)}
+              style={{
+                background: 'var(--surface-raised)',
+                border: '1px solid var(--border)',
+                borderRadius: 'var(--radius-md)',
+                padding: '14px 16px',
+                cursor: 'pointer',
+                transition: 'all 0.15s ease',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'translateY(-2px)';
+                e.currentTarget.style.borderColor = 'var(--accent)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.borderColor = 'var(--border)';
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <img
+                  src={`https://github.com/${item.username}.png`}
+                  alt={item.username}
+                  onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/identicon/svg?seed=${item.username}`; }}
+                  style={{ width: '36px', height: '36px', borderRadius: '50%', border: '1px solid var(--border)' }}
+                />
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: '0.88rem' }}>@{item.username}</div>
+                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{formattedDate}</div>
                 </div>
-
-                {isExpanded && (
-                  <div style={{ padding: '0 18px 18px', borderTop: '1px solid var(--border)' }}>
-                    <ReportView reportData={{ username: r.username, reportId: r.id, ...r.report_json }} />
-                  </div>
-                )}
               </div>
-            );
-          })}
-        </div>
-      )}
-    </section>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div style={{
+                  fontWeight: 800,
+                  fontSize: '0.92rem',
+                  color: scoreColor,
+                  background: 'var(--bg)',
+                  padding: '4px 8px',
+                  borderRadius: 'var(--radius-sm)',
+                  border: '1px solid var(--border)'
+                }}>
+                  {score}%
+                </div>
+                <ArrowRight size={14} color="var(--text-muted)" />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
   );
 }

@@ -1,14 +1,13 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext.jsx';
-import { X, ShieldCheck, User, Mail, Lock, Sparkles, Briefcase, AlertCircle } from 'lucide-react';
+import { X, ShieldCheck, User, Mail, Lock, Sparkles, AlertCircle, Zap } from 'lucide-react';
 
 export default function AuthModal() {
-  const { isAuthModalOpen, setIsAuthModalOpen, loginWithCredentials, signupWithCredentials, loginDemo } = useAuth();
+  const { isAuthModalOpen, setIsAuthModalOpen, authModalReason, loginWithCredentials, signupWithCredentials } = useAuth();
   const [isSignUp, setIsSignUp] = useState(false);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [role, setRole] = useState('Recruiter / Hiring Manager');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
 
@@ -21,7 +20,7 @@ export default function AuthModal() {
 
     try {
       if (isSignUp) {
-        await signupWithCredentials(name, email, password, role);
+        await signupWithCredentials(name, email, password);
       } else {
         await loginWithCredentials(email, password);
       }
@@ -71,8 +70,8 @@ export default function AuthModal() {
 
         <div style={{ textAlign: 'center', marginBottom: '20px' }}>
           <div style={{
-            width: '44px',
-            height: '44px',
+            width: '46px',
+            height: '46px',
             borderRadius: '12px',
             background: 'linear-gradient(135deg, #4f46e5, #10b981)',
             color: '#fff',
@@ -81,56 +80,34 @@ export default function AuthModal() {
             margin: '0 auto 12px',
             boxShadow: '0 4px 14px rgba(79, 70, 229, 0.3)'
           }}>
-            <ShieldCheck size={26} />
+            <ShieldCheck size={28} />
           </div>
-          <h2 style={{ fontSize: '1.3rem', fontWeight: 800 }}>
-            {isSignUp ? 'Create Auditor Account' : 'Sign in to TrustScore'}
+          <h2 style={{ fontSize: '1.35rem', fontWeight: 800 }}>
+            {isSignUp ? 'Create Your Account' : 'Welcome Back'}
           </h2>
           <p style={{ fontSize: '0.86rem', color: 'var(--text-muted)', marginTop: '4px' }}>
-            Connected to secure PostgreSQL authentication
+            {isSignUp ? 'Sign up to unlock unlimited analyses and save your audit history' : 'Sign in to access your private test history'}
           </p>
         </div>
 
-        {/* Demo Login Shortcut */}
-        <button
-          type="button"
-          onClick={() => loginDemo()}
-          style={{
-            width: '100%',
-            padding: '10px',
-            borderRadius: 'var(--radius-md)',
+        {/* Custom Reason / Quota Exceeded Alert */}
+        {authModalReason && (
+          <div style={{
             background: 'linear-gradient(135deg, rgba(79, 70, 229, 0.1), rgba(16, 185, 129, 0.1))',
-            border: '1px solid rgba(79, 70, 229, 0.25)',
-            color: '#4f46e5',
-            fontWeight: 700,
-            fontSize: '0.86rem',
-            cursor: 'pointer',
+            border: '1px solid rgba(79, 70, 229, 0.3)',
+            borderRadius: 'var(--radius-sm)',
+            padding: '12px 14px',
+            color: 'var(--text-main)',
+            fontSize: '0.84rem',
+            marginBottom: '16px',
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'center',
-            gap: '8px',
-            marginBottom: '16px',
-            transition: 'all 0.15s ease'
-          }}
-        >
-          <Sparkles size={15} color="#10b981" />
-          <span>One-Click Instant Demo Login</span>
-        </button>
-
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '10px',
-          color: 'var(--text-subtle)',
-          fontSize: '0.74rem',
-          margin: '12px 0',
-          textTransform: 'uppercase',
-          letterSpacing: '0.05em'
-        }}>
-          <span style={{ flex: 1, height: '1px', background: 'var(--border)' }} />
-          <span>or with email & password</span>
-          <span style={{ flex: 1, height: '1px', background: 'var(--border)' }} />
-        </div>
+            gap: '8px'
+          }}>
+            <Zap size={16} color="#4f46e5" style={{ flexShrink: 0 }} />
+            <span>{authModalReason}</span>
+          </div>
+        )}
 
         {error && (
           <div style={{
@@ -150,45 +127,47 @@ export default function AuthModal() {
           </div>
         )}
 
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
           {isSignUp && (
             <div>
-              <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, marginBottom: '4px' }}>Full Name</label>
+              <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, marginBottom: '4px' }}>Your Name</label>
               <input
                 type="text"
                 value={name}
                 onChange={e => setName(e.target.value)}
-                placeholder="Jane Doe"
+                placeholder="Alex Morgan"
                 required
                 style={{
                   width: '100%',
-                  padding: '9px 12px',
+                  padding: '10px 12px',
                   borderRadius: 'var(--radius-sm)',
                   border: '1px solid var(--border)',
                   background: 'var(--bg)',
                   color: 'var(--text-main)',
-                  outline: 'none'
+                  outline: 'none',
+                  fontSize: '0.88rem'
                 }}
               />
             </div>
           )}
 
           <div>
-            <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, marginBottom: '4px' }}>Work Email</label>
+            <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, marginBottom: '4px' }}>Email Address</label>
             <input
               type="email"
               value={email}
               onChange={e => setEmail(e.target.value)}
-              placeholder="you@company.com"
+              placeholder="you@example.com"
               required
               style={{
                 width: '100%',
-                padding: '9px 12px',
+                padding: '10px 12px',
                 borderRadius: 'var(--radius-sm)',
                 border: '1px solid var(--border)',
                 background: 'var(--bg)',
                 color: 'var(--text-main)',
-                outline: 'none'
+                outline: 'none',
+                fontSize: '0.88rem'
               }}
             />
           </div>
@@ -204,39 +183,16 @@ export default function AuthModal() {
               minLength={6}
               style={{
                 width: '100%',
-                padding: '9px 12px',
+                padding: '10px 12px',
                 borderRadius: 'var(--radius-sm)',
                 border: '1px solid var(--border)',
                 background: 'var(--bg)',
                 color: 'var(--text-main)',
-                outline: 'none'
+                outline: 'none',
+                fontSize: '0.88rem'
               }}
             />
           </div>
-
-          {isSignUp && (
-            <div>
-              <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, marginBottom: '4px' }}>Your Role</label>
-              <select
-                value={role}
-                onChange={e => setRole(e.target.value)}
-                style={{
-                  width: '100%',
-                  padding: '9px 12px',
-                  borderRadius: 'var(--radius-sm)',
-                  border: '1px solid var(--border)',
-                  background: 'var(--bg)',
-                  color: 'var(--text-main)',
-                  outline: 'none'
-                }}
-              >
-                <option value="Recruiter / Hiring Manager">Recruiter / Hiring Manager</option>
-                <option value="Engineering Manager">Engineering Manager / CTO</option>
-                <option value="Freelance Client">Freelance Client</option>
-                <option value="Software Developer">Software Developer (Auditing Self)</option>
-              </select>
-            </div>
-          )}
 
           <button
             type="submit"
@@ -250,15 +206,20 @@ export default function AuthModal() {
               fontWeight: 700,
               fontSize: '0.92rem',
               border: 'none',
-              cursor: isLoading ? 'not-allowed' : 'pointer'
+              cursor: isLoading ? 'not-allowed' : 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px',
+              boxShadow: '0 4px 14px rgba(15, 23, 42, 0.25)'
             }}
           >
-            {isLoading ? 'Processing…' : (isSignUp ? 'Create DB Account' : 'Sign In')}
+            {isLoading ? 'Please wait…' : (isSignUp ? 'Create Free Account' : 'Sign In')}
           </button>
         </form>
 
-        <div style={{ textAlign: 'center', marginTop: '16px', fontSize: '0.82rem', color: 'var(--text-muted)' }}>
-          {isSignUp ? 'Already have an account? ' : "Don't have an account? "}
+        <div style={{ textAlign: 'center', marginTop: '18px', fontSize: '0.84rem', color: 'var(--text-muted)' }}>
+          {isSignUp ? 'Already have an account? ' : "Don't have an account yet? "}
           <button
             type="button"
             onClick={() => {
@@ -267,7 +228,7 @@ export default function AuthModal() {
             }}
             style={{ background: 'none', border: 'none', color: '#4f46e5', fontWeight: 700, cursor: 'pointer' }}
           >
-            {isSignUp ? 'Sign In' : 'Sign Up'}
+            {isSignUp ? 'Sign In' : 'Sign Up Free'}
           </button>
         </div>
       </div>
