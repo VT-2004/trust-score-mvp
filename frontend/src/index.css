@@ -153,3 +153,74 @@ input {
     break-before: page;
   }
 }
+
+/* =========================================================
+   Mobile & Multi-Device Responsiveness (Phones & Tablets)
+   ========================================================= */
+@media (max-width: 768px) {
+  body {
+    font-size: 14px;
+  }
+
+  main {
+    padding: 20px 14px 60px !important;
+  }
+
+  nav > div {
+    padding: 8px 12px !important;
+    gap: 8px !important;
+  }
+
+  /* Force multi-column comparison grids to stack gracefully on mobile */
+  .grid-2-col,
+  div[style*="grid-template-columns: 1fr 1fr"],
+  div[style*="gridTemplateColumns: '1fr 1fr'"] {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Make search cards and action headers wrap */
+  .hero-container {
+    padding: 24px 16px !important;
+  }
+
+  /* Responsive headings */
+  h1 {
+    font-size: 1.5rem !important;
+  }
+
+  h2 {
+    font-size: 1.25rem !important;
+  }
+
+  /* Form and buttons full width on small screens */
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  textarea {
+    font-size: 16px !important; /* Prevents auto-zoom on iOS */
+  }
+}
+
+@media (max-width: 480px) {
+  nav > div {
+    flex-direction: column;
+    align-items: stretch !important;
+  }
+
+  nav > div > div:first-child {
+    justify-content: space-between;
+  }
+
+  nav > div > div:last-child {
+    justify-content: space-between;
+    width: 100%;
+    margin-top: 4px;
+  }
+
+  /* Score rings and summary flex rows */
+  .score-card-flex {
+    flex-direction: column !important;
+    text-align: center !important;
+  }
+}
+

@@ -74,6 +74,15 @@ export async function getUserById(id) {
   return result.rows[0] || null;
 }
 
+export async function updateUserPassword(email, newPasswordHash) {
+  await ensureInitialized();
+  const result = await pool.query(
+    `UPDATE users SET password_hash = $1 WHERE email = $2 RETURNING id, name, email, role, avatar, created_at`,
+    [newPasswordHash, email.toLowerCase().trim()]
+  );
+  return result.rows[0] || null;
+}
+
 export async function saveReport(username, reportObj) {
   await ensureInitialized();
   const result = await pool.query(

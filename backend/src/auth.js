@@ -95,13 +95,46 @@ export async function getMeFromToken(token) {
     } catch {
       user = memoryUsers.get(decoded.email) || null;
     }
-    if (!user) {
-      user = memoryUsers.get(decoded.email) || null;
-    }
     if (!user) throw new Error('User not found.');
     const { password_hash, ...safeUser } = user;
     return safeUser;
   } catch (err) {
     throw new Error('Invalid or expired token.');
   }
+}
+
+export async function resetUserPassword({ email, newPassword }) {
+  if (!email || !newPassword) {
+    throw new Error('Email and new password are required.');
+  }
+
+  const cleanEmail = email.toLowerCase().trim();
+  const passwordHash = await bcrypt.hash(newPassword, 10);
+  let updatedUser = null;
+
+  try {
+    const existing = await getUserByEmail(cleanEmail);
+    if (existing) {
+      updatedUser = await updateUserPassword(cleanEmail, passwordHash);
+    }
+  } catch (err) {
+    // Postgres fallback
+  }
+
+  if (memoryUsers.has(cleanEmail)) {
+    const mem = memoryUsers.get(cleanEmail);
+    mem.password_hash = passwordHash;
+    memoryUsers.set(cleanEmail, mem);
+    if (!updatedUser) {
+      const { password_hash, ...safe } = mem;
+      updatedUser = safe;
+    }
+  }
+
+  if (!updatedUser) {
+    throw new Error('No registered account found with that email address.');
+  }
+
+  const token = jwt.sign({ id: updatedUser.id, email: updatedUser.email }, JWT_SECRET, { expiresIn: '7d' });
+  return { user: updatedUser, token };
 }

@@ -8,7 +8,7 @@ import { getUserRepos, getRepoCommits, getUserProfile, getRateLimitStatus } from
 import { analyzeRepo, crossRepoConsistency, portfolioTimeline, looksLikeAssignment } from "./analyze.js";
 import { generateTrustReport, verifyResumeClaims, compareDualResumesAndGithub } from "./groq.js";
 import { saveReport, getReport, listReportsForUser, listRecentReports, getLatestReportForUser, saveReview, listReviews } from "./db.js";
-import { signupUser, loginUser, getMeFromToken } from "./auth.js";
+import { signupUser, loginUser, getMeFromToken, resetUserPassword } from "./auth.js";
 
 dotenv.config();
 
@@ -297,6 +297,17 @@ app.post("/api/auth/login", async (req, res) => {
   try {
     const { email, password } = req.body;
     const result = await loginUser({ email, password });
+    res.json({ success: true, ...result });
+  } catch (err) {
+    console.error(err);
+    res.status(400).json({ error: err.message });
+  }
+});
+
+app.post("/api/auth/reset-password", async (req, res) => {
+  try {
+    const { email, newPassword } = req.body;
+    const result = await resetUserPassword({ email, newPassword });
     res.json({ success: true, ...result });
   } catch (err) {
     console.error(err);

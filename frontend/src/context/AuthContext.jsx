@@ -140,6 +140,25 @@ export function AuthProvider({ children }) {
     return data.user;
   };
 
+  const resetPasswordWithCredentials = async (email, newPassword) => {
+    const res = await fetch(`${API_BASE}/api/auth/reset-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, newPassword })
+    });
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      throw new Error(data.error || 'Password reset failed. Please check your email.');
+    }
+    setUser(data.user);
+    setToken(data.token);
+    localStorage.setItem('trustscore_user', JSON.stringify(data.user));
+    localStorage.setItem('trustscore_token', data.token);
+    setIsAuthModalOpen(false);
+    setAuthModalReason(null);
+    return data.user;
+  };
+
   const logout = () => {
     setUser(null);
     setToken(null);
@@ -164,6 +183,7 @@ export function AuthProvider({ children }) {
       localAudits,
       loginWithCredentials,
       signupWithCredentials,
+      resetPasswordWithCredentials,
       logout,
       isAuthModalOpen,
       setIsAuthModalOpen,
