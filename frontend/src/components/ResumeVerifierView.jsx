@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   FileText,
   ShieldCheck,
@@ -12,30 +12,77 @@ import {
   RefreshCw,
   Code2,
   Calendar,
-  AlertCircle
+  AlertCircle,
+  UploadCloud,
+  FileCheck,
+  Trash2
 } from 'lucide-react';
 import ScoreRing from './ScoreRing.jsx';
 
 export default function ResumeVerifierView({ apiBase }) {
   const [username, setUsername] = useState('');
   const [resumeText, setResumeText] = useState('');
+  const [selectedFileName, setSelectedFileName] = useState(null);
+  const [inputMode, setInputMode] = useState('paste'); // 'paste' | 'upload'
   const [isLoading, setIsLoading] = useState(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
+  const fileInputRef = useRef(null);
 
-  const sampleResume = `SENIOR FULL STACK ENGINEER
+  const sampleResumes = {
+    fullstack: `SENIOR FULL STACK ENGINEER
 Summary:
 5+ years of experience building high-throughput web applications and microservices in Go, React, and Python. Specialized in distributed databases, Docker, Kubernetes, and Next.js frontend architectures. Led development of real-time trading dashboards and GraphQL API gateways.
 
 Key Technical Skills:
 - Languages: Go, Python, TypeScript, JavaScript
 - Frameworks: React, Next.js, Node.js, Express, PyTorch
-- Tools: Docker, Kubernetes, PostgreSQL, Redis, AWS, Git`;
+- Tools: Docker, Kubernetes, PostgreSQL, Redis, AWS, Git`,
+    frontend: `FRONTEND ARCHITECT & REACT SPECIALIST
+Summary:
+4+ years creating accessible design systems, UI component libraries, and performant web apps in React, Tailwind CSS, and TypeScript. Core contributor to open-source UI tooling.
+
+Key Technical Skills:
+- Languages: TypeScript, JavaScript, CSS3, HTML5
+- Frameworks: React, Next.js, Radix UI, TailwindCSS, Vite
+- Tools: Jest, Cypress, Storybook, GitHub Actions`,
+    backend: `BACKEND & DISTRIBUTED SYSTEMS ENGINEER
+Summary:
+6 years developing cloud-native microservices, message queues, and high-concurrency data pipelines using Rust, Python, and Go.
+
+Key Technical Skills:
+- Languages: Python, Go, Rust, SQL
+- Technologies: Kafka, RabbitMQ, PostgreSQL, Docker, AWS Lambda`
+  };
+
+  const handleFileUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setSelectedFileName(file.name);
+    setError(null);
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const text = event.target.result;
+      if (typeof text === 'string' && text.trim()) {
+        setResumeText(text);
+      } else {
+        setError('Could not extract text from this file. Please paste text directly.');
+      }
+    };
+    reader.onerror = () => {
+      setError('Error reading file. Please paste your resume text directly.');
+    };
+
+    // For plain text, markdown, json, etc.
+    reader.readAsText(file);
+  };
 
   const handleVerify = async (e) => {
     e.preventDefault();
     if (!username.trim() || !resumeText.trim()) {
-      setError('Please provide both candidate GitHub username and resume text.');
+      setError('Please provide both candidate GitHub username and resume text (or uploaded file).');
       return;
     }
 
@@ -82,8 +129,8 @@ Key Technical Skills:
         boxShadow: 'var(--shadow-sm)'
       }}>
         <div style={{
-          width: '36px',
-          height: '36px',
+          width: '38px',
+          height: '38px',
           borderRadius: '10px',
           background: '#10b981',
           color: '#fff',
@@ -91,14 +138,14 @@ Key Technical Skills:
           placeItems: 'center',
           flexShrink: 0
         }}>
-          <Lock size={18} />
+          <Lock size={19} />
         </div>
         <div>
-          <div style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-main)' }}>
-            Zero-Leakage Ephemeral Privacy Architecture
+          <div style={{ fontSize: '0.92rem', fontWeight: 700, color: 'var(--text-main)' }}>
+            Zero-Leakage Anti-Leak Privacy Architecture
           </div>
           <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginTop: '2px', lineHeight: 1.4 }}>
-            Resumes are processed purely in ephemeral RAM with automated PII redaction (phones, emails, addresses stripped). <strong>Zero persistent storage</strong> — no resume data is saved to any database.
+            Resumes are processed purely in ephemeral RAM with automated PII redaction (phones, emails, addresses stripped). <strong>Zero persistent storage</strong> — no candidate resume data is saved to disk or database.
           </div>
         </div>
       </div>
@@ -118,7 +165,7 @@ Key Technical Skills:
             <span>Verify Resume Claims Against Real GitHub Footprint</span>
           </h3>
           <p style={{ color: 'var(--text-muted)', fontSize: '0.88rem', marginTop: '4px' }}>
-            Cross-examine claimed skills, frameworks, and seniority against actual repository commit volume and timestamps.
+            Upload a resume file or paste skill claims to cross-examine against the candidate's real repositories, languages, and commit history.
           </p>
         </div>
 
@@ -140,9 +187,10 @@ Key Technical Skills:
           </div>
         )}
 
-        <form onSubmit={handleVerify} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        <form onSubmit={handleVerify} style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+          {/* Candidate Username */}
           <div>
-            <label style={{ display: 'block', fontSize: '0.84rem', fontWeight: 700, marginBottom: '6px' }}>
+            <label style={{ display: 'block', fontSize: '0.86rem', fontWeight: 700, marginBottom: '6px' }}>
               Candidate GitHub Username
             </label>
             <div style={{ position: 'relative' }}>
@@ -167,31 +215,137 @@ Key Technical Skills:
             </div>
           </div>
 
+          {/* Input Method Toggle: File Upload vs Paste */}
           <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-              <label style={{ fontSize: '0.84rem', fontWeight: 700 }}>
-                Candidate Resume Text / Skill Claims
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', flexWrap: 'wrap', gap: '8px' }}>
+              <label style={{ fontSize: '0.86rem', fontWeight: 700 }}>
+                Candidate Resume / Claimed Skills
               </label>
+
+              <div style={{ display: 'flex', gap: '6px' }}>
+                <button
+                  type="button"
+                  onClick={() => setInputMode('paste')}
+                  style={{
+                    padding: '4px 10px',
+                    borderRadius: 'var(--radius-sm)',
+                    background: inputMode === 'paste' ? 'var(--surface-raised)' : 'transparent',
+                    border: '1px solid var(--border)',
+                    fontSize: '0.76rem',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    color: inputMode === 'paste' ? 'var(--text-main)' : 'var(--text-muted)'
+                  }}
+                >
+                  📋 Paste Text
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setInputMode('upload');
+                    fileInputRef.current?.click();
+                  }}
+                  style={{
+                    padding: '4px 10px',
+                    borderRadius: 'var(--radius-sm)',
+                    background: inputMode === 'upload' ? 'var(--surface-raised)' : 'transparent',
+                    border: '1px solid var(--border)',
+                    fontSize: '0.76rem',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    color: inputMode === 'upload' ? 'var(--text-main)' : 'var(--text-muted)',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px'
+                  }}
+                >
+                  <UploadCloud size={13} />
+                  <span>Upload File</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Hidden File Input */}
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleFileUpload}
+              accept=".txt,.md,.pdf,.json,.doc,.docx"
+              style={{ display: 'none' }}
+            />
+
+            {/* Upload File Banner if file chosen */}
+            {selectedFileName && (
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '10px 14px',
+                borderRadius: 'var(--radius-sm)',
+                background: 'var(--surface-raised)',
+                border: '1px solid var(--border)',
+                marginBottom: '10px',
+                fontSize: '0.84rem'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <FileCheck size={16} color="#10b981" />
+                  <span>Selected File: <strong>{selectedFileName}</strong></span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedFileName(null);
+                    setResumeText('');
+                  }}
+                  style={{ background: 'none', border: 'none', color: 'var(--danger-text)', cursor: 'pointer', padding: 0 }}
+                >
+                  <Trash2 size={14} />
+                </button>
+              </div>
+            )}
+
+            {/* Quick Sample Selector Pills */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px', flexWrap: 'wrap' }}>
+              <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>Quick Samples:</span>
               <button
                 type="button"
-                onClick={() => setResumeText(sampleResume)}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  color: '#4f46e5',
-                  fontSize: '0.78rem',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  padding: 0
+                onClick={() => {
+                  setResumeText(sampleResumes.fullstack);
+                  setSelectedFileName(null);
                 }}
+                style={{ background: 'var(--surface-raised)', border: '1px solid var(--border)', padding: '2px 8px', borderRadius: 'var(--radius-full)', fontSize: '0.74rem', cursor: 'pointer' }}
               >
-                Insert Sample Resume Text
+                Full-Stack Engineer
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setResumeText(sampleResumes.frontend);
+                  setSelectedFileName(null);
+                }}
+                style={{ background: 'var(--surface-raised)', border: '1px solid var(--border)', padding: '2px 8px', borderRadius: 'var(--radius-full)', fontSize: '0.74rem', cursor: 'pointer' }}
+              >
+                Frontend Architect
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setResumeText(sampleResumes.backend);
+                  setSelectedFileName(null);
+                }}
+                style={{ background: 'var(--surface-raised)', border: '1px solid var(--border)', padding: '2px 8px', borderRadius: 'var(--radius-full)', fontSize: '0.74rem', cursor: 'pointer' }}
+              >
+                Backend & Distributed
               </button>
             </div>
 
+            {/* Resume Textarea */}
             <textarea
               value={resumeText}
-              onChange={e => setResumeText(e.target.value)}
+              onChange={e => {
+                setResumeText(e.target.value);
+                setSelectedFileName(null);
+              }}
               placeholder="Paste candidate resume text, project summaries, or technical skill claims here..."
               rows={6}
               required

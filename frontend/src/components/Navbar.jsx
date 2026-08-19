@@ -11,7 +11,8 @@ import {
   LogOut,
   GitCompare,
   Bookmark,
-  Activity
+  Activity,
+  FileText
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext.jsx';
 
@@ -34,7 +35,8 @@ export default function Navbar({ activeTab, onSelectTab, theme, onToggleTheme, i
 
   const navItems = [
     { id: 'analyzer', label: 'Analyzer', icon: Search },
-    { id: 'compare', label: 'Compare', icon: GitCompare },
+    { id: 'resume', label: 'Resume Verifier', icon: FileText },
+    { id: 'compare', label: 'Compare Repos', icon: GitCompare },
     { id: 'shortlist', label: 'Shortlist', icon: Bookmark },
     { id: 'history', label: 'Tests History', icon: History },
     { id: 'analytics', label: 'Analytics', icon: BarChart3 },

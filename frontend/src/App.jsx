@@ -5,6 +5,7 @@ import HeroSearch from './components/HeroSearch.jsx';
 import ReportView from './components/ReportView.jsx';
 import RecentFeed from './components/RecentFeed.jsx';
 import CandidateCompareView from './components/CandidateCompareView.jsx';
+import ResumeVerifierView from './components/ResumeVerifierView.jsx';
 import ShortlistView from './components/ShortlistView.jsx';
 import TestsHistoryView from './components/TestsHistoryView.jsx';
 import AnalyticsDashboard from './components/AnalyticsDashboard.jsx';
@@ -20,7 +21,7 @@ const API_BASE = isLocal
   : (window.location.hostname.includes('onrender.com') ? '' : RENDER_BACKEND);
 
 function DashboardContent() {
-  const [activeTab, setActiveTab] = useState('analyzer'); // 'analyzer' | 'result' | 'compare' | 'shortlist' | 'history' | 'analytics' | 'reviews'
+  const [activeTab, setActiveTab] = useState('analyzer'); // 'analyzer' | 'result' | 'resume' | 'compare' | 'shortlist' | 'history' | 'analytics' | 'reviews'
   const [previousTab, setPreviousTab] = useState('analyzer');
   const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'light');
   const [isOnline, setIsOnline] = useState(true);
@@ -268,7 +269,14 @@ function DashboardContent() {
           />
         )}
 
-        {/* TAB 3: Candidate Compare Mode */}
+        {/* TAB 3: Resume Verifier Mode */}
+        {activeTab === 'resume' && (
+          <ResumeVerifierView
+            apiBase={API_BASE}
+          />
+        )}
+
+        {/* TAB 4: Candidate Compare Mode */}
         {activeTab === 'compare' && (
           <CandidateCompareView
             apiBase={API_BASE}
