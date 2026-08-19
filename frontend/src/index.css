@@ -92,21 +92,27 @@ input {
 @media print {
   @page {
     size: A4 portrait;
-    margin: 10mm 12mm;
+    margin: 8mm 10mm;
   }
 
-  body {
+  html, body {
     background: #ffffff !important;
     background-image: none !important;
     color: #0f172a !important;
-    font-size: 11pt;
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
   }
 
-  /* Hide interactive web UI */
+  /* Hide entire interactive web UI */
+  .no-print,
   nav,
   .navbar,
   footer,
   button,
+  input,
+  select,
+  textarea,
   .theme-toggle,
   .badge-pill,
   .quick-picks,
@@ -115,23 +121,26 @@ input {
   .hero,
   .toolbar,
   .repo-tabs,
+  .repo-controls,
   .cards-grid,
   .report-header,
-  .interview-card {
+  .interview-card,
+  .repo-explorer {
     display: none !important;
   }
 
-  /* Show the dedicated printable dossier */
+  /* Show ONLY the dedicated printable dossier */
   .printable-dossier {
     display: block !important;
+    visibility: visible !important;
     width: 100% !important;
   }
 
   .dossier-page {
     page-break-after: always;
     break-after: page;
-    min-height: 980px !important;
     box-sizing: border-box;
+    padding: 16px 20px !important;
   }
 
   .dossier-page:last-child {

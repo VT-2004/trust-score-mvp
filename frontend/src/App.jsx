@@ -119,16 +119,18 @@ function DashboardContent() {
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
-      <Navbar
-        activeTab={activeTab}
-        onSelectTab={(tab) => {
-          setPreviousTab(activeTab);
-          setActiveTab(tab);
-        }}
-        theme={theme}
-        onToggleTheme={toggleTheme}
-        isOnline={isOnline}
-      />
+      <div className="no-print">
+        <Navbar
+          activeTab={activeTab}
+          onSelectTab={(tab) => {
+            setPreviousTab(activeTab);
+            setActiveTab(tab);
+          }}
+          theme={theme}
+          onToggleTheme={toggleTheme}
+          isOnline={isOnline}
+        />
+      </div>
 
       <main style={{ flex: 1, maxWidth: '1080px', width: '100%', margin: '0 auto', padding: '36px 24px 80px' }}>
         {/* TAB 1: Analyzer / Home */}
@@ -245,7 +247,9 @@ function DashboardContent() {
               </div>
             )}
 
-            <RecentFeed apiBase={API_BASE} />
+            <div className="no-print">
+              <RecentFeed apiBase={API_BASE} />
+            </div>
           </>
         )}
 
@@ -283,18 +287,20 @@ function DashboardContent() {
         )}
 
         {/* General Feedback Modal */}
-        <ReviewGateModal
-          isOpen={isFeedbackModalOpen}
-          onClose={() => setIsFeedbackModalOpen(false)}
-          onFeedbackSubmitted={() => setIsFeedbackModalOpen(false)}
-          candidateUsername={reportData?.username || 'Platform Review'}
-          apiBase={API_BASE}
-        />
+        <div className="no-print">
+          <ReviewGateModal
+            isOpen={isFeedbackModalOpen}
+            onClose={() => setIsFeedbackModalOpen(false)}
+            onFeedbackSubmitted={() => setIsFeedbackModalOpen(false)}
+            candidateUsername={reportData?.username || 'Platform Review'}
+            apiBase={API_BASE}
+          />
 
-        {/* Authentication Modal */}
-        <AuthModal />
+          {/* Authentication Modal */}
+          <AuthModal />
+        </div>
 
-        <footer style={{
+        <footer className="no-print" style={{
           marginTop: '64px',
           paddingTop: '24px',
           borderTop: '1px solid var(--border)',

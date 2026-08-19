@@ -80,15 +80,16 @@ export default function ReportView({ reportData, onRefresh, isRefreshing, apiBas
 
   return (
     <div style={{ animation: 'fadeIn 0.3s ease-in-out' }}>
-      {/* Top Breadcrumb Navigation */}
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        marginBottom: '20px',
-        flexWrap: 'wrap',
-        gap: '12px'
-      }}>
+      <div className="no-print">
+        {/* Top Breadcrumb Navigation */}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          marginBottom: '20px',
+          flexWrap: 'wrap',
+          gap: '12px'
+        }}>
         {onBack && (
           <button
             onClick={onBack}
@@ -456,14 +457,15 @@ export default function ReportView({ reportData, onRefresh, isRefreshing, apiBas
         )}
       </div>
 
-      {/* Mandatory Review Gate Modal */}
-      <ReviewGateModal
-        isOpen={isReviewModalOpen}
-        onClose={() => setIsReviewModalOpen(false)}
-        onFeedbackSubmitted={handleFeedbackSubmitted}
-        candidateUsername={username}
-        apiBase={apiBase}
-      />
+        {/* Mandatory Review Gate Modal */}
+        <ReviewGateModal
+          isOpen={isReviewModalOpen}
+          onClose={() => setIsReviewModalOpen(false)}
+          onFeedbackSubmitted={handleFeedbackSubmitted}
+          candidateUsername={username}
+          apiBase={apiBase}
+        />
+      </div>
 
       {/* Clean 2-Page Executive Printable Dossier (Active on print/PDF) */}
       <PrintableDossier reportData={reportData} />

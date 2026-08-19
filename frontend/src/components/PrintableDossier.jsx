@@ -19,7 +19,7 @@ export default function PrintableDossier({ reportData }) {
   return (
     <div className="printable-dossier" style={{ display: 'none' }}>
       {/* PAGE 1: Executive Overview & Heuristic Signals */}
-      <div className="dossier-page" style={{ padding: '24px', background: '#fff', color: '#0f172a', fontFamily: 'var(--font-sans)', minHeight: '1050px' }}>
+      <div className="dossier-page" style={{ padding: '16px 20px', background: '#fff', color: '#0f172a', fontFamily: 'var(--font-sans)' }}>
         {/* Letterhead */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid #0f172a', paddingBottom: '14px', marginBottom: '18px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -124,7 +124,7 @@ export default function PrintableDossier({ reportData }) {
       <div className="page-break" style={{ pageBreakBefore: 'always', height: '1px' }}></div>
 
       {/* PAGE 2: Repository Signals Breakdown & Verification Seal */}
-      <div className="dossier-page" style={{ padding: '24px', background: '#fff', color: '#0f172a', fontFamily: 'var(--font-sans)', minHeight: '1050px' }}>
+      <div className="dossier-page" style={{ padding: '16px 20px', background: '#fff', color: '#0f172a', fontFamily: 'var(--font-sans)' }}>
         {/* Page 2 Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e2e8f0', paddingBottom: '10px', marginBottom: '16px' }}>
           <div style={{ fontSize: '0.88rem', fontWeight: 700, color: '#0f172a' }}>
