@@ -6,7 +6,7 @@ import { fileURLToPath } from "url";
 
 import { getUserRepos, getRepoCommits, getUserProfile, getRateLimitStatus } from "./github.js";
 import { analyzeRepo, crossRepoConsistency, portfolioTimeline, looksLikeAssignment } from "./analyze.js";
-import { generateTrustReport, verifyResumeClaims } from "./groq.js";
+import { generateTrustReport, verifyResumeClaims, compareDualResumesAndGithub } from "./groq.js";
 import { saveReport, getReport, listReportsForUser, listRecentReports, getLatestReportForUser, saveReview, listReviews } from "./db.js";
 import { signupUser, loginUser, getMeFromToken } from "./auth.js";
 
@@ -362,7 +362,87 @@ app.post("/api/verify-resume", async (req, res) => {
     });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// ==========================================
+// Dual Candidate Resume ATS & GitHub Comparator
+// ==========================================
+app.post("/api/compare-resumes", async (req, res) => {
+  try {
+    const { candidateA, candidateB, targetRole } = req.body;
+    if (!candidateA?.username || !candidateA?.resumeText || !candidateB?.username || !candidateB?.resumeText) {
+      return res.status(400).json({ success: false, error: "Both candidates require a GitHub username and resume content." });
+    }
+
+    const cleanUserA = candidateA.username.trim().replace(/^@/, "");
+    const cleanUserB = candidateB.username.trim().replace(/^@/, "");
+
+    // Concurrently fetch GitHub profiles & repos for both candidates
+    const [profileA, reposA, profileB, reposB] = await Promise.all([
+      getUserProfile(cleanUserA),
+      getUserRepos(cleanUserA),
+      getUserProfile(cleanUserB),
+      getUserRepos(cleanUserB),
+    ]);
+
+    const nonForkA = reposA.filter(r => !r.fork && !r.archived);
+    const nonForkB = reposB.filter(r => !r.fork && !r.archived);
+
+    const payloadA = {
+      username: cleanUserA,
+      profileCreatedAt: profileA.created_at,
+      totalNonForkRepos: nonForkA.length,
+      repos: nonForkA.map(r => ({
+        name: r.name,
+        language: r.language,
+        created_at: r.created_at,
+        pushed_at: r.pushed_at,
+        stargazers_count: r.stargazers_count,
+        isAssignment: looksLikeAssignment(r)
+      }))
+    };
+
+    const payloadB = {
+      username: cleanUserB,
+      profileCreatedAt: profileB.created_at,
+      totalNonForkRepos: nonForkB.length,
+      repos: nonForkB.map(r => ({
+        name: r.name,
+        language: r.language,
+        created_at: r.created_at,
+        pushed_at: r.pushed_at,
+        stargazers_count: r.stargazers_count,
+        isAssignment: looksLikeAssignment(r)
+      }))
+    };
+
+    const comparisonReport = await compareDualResumesAndGithub({
+      candidateA: {
+        name: candidateA.name || cleanUserA,
+        username: cleanUserA,
+        resumeText: candidateA.resumeText,
+        analysis: payloadA
+      },
+      candidateB: {
+        name: candidateB.name || cleanUserB,
+        username: cleanUserB,
+        resumeText: candidateB.resumeText,
+        analysis: payloadB
+      },
+      targetRole: targetRole || "Senior Software Engineer"
+    });
+
+    res.json({
+      success: true,
+      comparedAt: new Date().toISOString(),
+      targetRole: targetRole || "Senior Software Engineer",
+      report: comparisonReport
+    });
+  } catch (err) {
+    console.error("Resume comparison error:", err);
+    res.status(500).json({ success: false, error: err.message });
   }
 });
 

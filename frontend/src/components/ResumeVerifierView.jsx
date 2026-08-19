@@ -15,74 +15,102 @@ import {
   AlertCircle,
   UploadCloud,
   FileCheck,
-  Trash2
+  Trash2,
+  Users,
+  Award,
+  Zap,
+  Briefcase
 } from 'lucide-react';
 import ScoreRing from './ScoreRing.jsx';
 
 export default function ResumeVerifierView({ apiBase }) {
-  const [username, setUsername] = useState('');
-  const [resumeText, setResumeText] = useState('');
-  const [selectedFileName, setSelectedFileName] = useState(null);
-  const [inputMode, setInputMode] = useState('paste'); // 'paste' | 'upload'
+  const [targetRole, setTargetRole] = useState('Senior Full Stack / Frontend Engineer');
+
+  // Candidate A State
+  const [nameA, setNameA] = useState('');
+  const [usernameA, setUsernameA] = useState('');
+  const [resumeA, setResumeA] = useState('');
+  const [fileA, setFileA] = useState(null);
+  const [modeA, setModeA] = useState('paste');
+  const fileInputRefA = useRef(null);
+
+  // Candidate B State
+  const [nameB, setNameB] = useState('');
+  const [usernameB, setUsernameB] = useState('');
+  const [resumeB, setResumeB] = useState('');
+  const [fileB, setFileB] = useState(null);
+  const [modeB, setModeB] = useState('paste');
+  const fileInputRefB = useRef(null);
+
   const [isLoading, setIsLoading] = useState(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
-  const fileInputRef = useRef(null);
 
-  const sampleResumes = {
-    fullstack: `SENIOR FULL STACK ENGINEER
+  const samplePairs = [
+    {
+      title: 'React Creator vs UI Systems Architect',
+      role: 'Staff Frontend & Design Systems Engineer',
+      candA: {
+        name: 'Dan Abramov',
+        user: 'gaearon',
+        resume: `SENIOR STAFF FRONTEND ARCHITECT
 Summary:
-5+ years of experience building high-throughput web applications and microservices in Go, React, and Python. Specialized in distributed databases, Docker, Kubernetes, and Next.js frontend architectures. Led development of real-time trading dashboards and GraphQL API gateways.
-
-Key Technical Skills:
-- Languages: Go, Python, TypeScript, JavaScript
-- Frameworks: React, Next.js, Node.js, Express, PyTorch
-- Tools: Docker, Kubernetes, PostgreSQL, Redis, AWS, Git`,
-    frontend: `FRONTEND ARCHITECT & REACT SPECIALIST
+8+ years experience designing state management paradigms, developer tooling, and modern UI architectures in React, Redux, and TypeScript. Extensive expertise in compilers, component rendering lifecycles, and high-scale open-source systems.
+Skills: React, Redux, JavaScript, TypeScript, Node.js, Webpack, Babel, Architecture`
+      },
+      candB: {
+        name: 'shadcn',
+        user: 'shadcn',
+        resume: `FULL STACK & DESIGN SYSTEMS LEAD
 Summary:
-4+ years creating accessible design systems, UI component libraries, and performant web apps in React, Tailwind CSS, and TypeScript. Core contributor to open-source UI tooling.
+6+ years building accessible component libraries, design systems, and Next.js applications with Tailwind CSS, Radix UI, and TypeScript. Specialist in developer experience and modern React server components.
+Skills: React, Next.js, Tailwind CSS, TypeScript, Radix UI, UI/UX Design, Open Source`
+      }
+    }
+  ];
 
-Key Technical Skills:
-- Languages: TypeScript, JavaScript, CSS3, HTML5
-- Frameworks: React, Next.js, Radix UI, TailwindCSS, Vite
-- Tools: Jest, Cypress, Storybook, GitHub Actions`,
-    backend: `BACKEND & DISTRIBUTED SYSTEMS ENGINEER
-Summary:
-6 years developing cloud-native microservices, message queues, and high-concurrency data pipelines using Rust, Python, and Go.
+  const handleApplySample = (pair) => {
+    setTargetRole(pair.role);
+    setNameA(pair.candA.name);
+    setUsernameA(pair.candA.user);
+    setResumeA(pair.candA.resume);
+    setFileA(null);
 
-Key Technical Skills:
-- Languages: Python, Go, Rust, SQL
-- Technologies: Kafka, RabbitMQ, PostgreSQL, Docker, AWS Lambda`
+    setNameB(pair.candB.name);
+    setUsernameB(pair.candB.user);
+    setResumeB(pair.candB.resume);
+    setFileB(null);
+    setError(null);
   };
 
-  const handleFileUpload = (e) => {
-    const file = e.target.files?.[0];
+  const handleFileUpload = (file, setFileName, setContent) => {
     if (!file) return;
-
-    setSelectedFileName(file.name);
+    setFileName(file.name);
     setError(null);
 
     const reader = new FileReader();
-    reader.onload = (event) => {
-      const text = event.target.result;
+    reader.onload = (e) => {
+      const text = e.target.result;
       if (typeof text === 'string' && text.trim()) {
-        setResumeText(text);
+        setContent(text);
       } else {
-        setError('Could not extract text from this file. Please paste text directly.');
+        setError(`Could not extract readable text from ${file.name}. Please paste text.`);
       }
     };
     reader.onerror = () => {
-      setError('Error reading file. Please paste your resume text directly.');
+      setError(`Failed to read ${file.name}. Please paste your resume text directly.`);
     };
-
-    // For plain text, markdown, json, etc.
     reader.readAsText(file);
   };
 
-  const handleVerify = async (e) => {
+  const handleCompare = async (e) => {
     e.preventDefault();
-    if (!username.trim() || !resumeText.trim()) {
-      setError('Please provide both candidate GitHub username and resume text (or uploaded file).');
+    if (!usernameA.trim() || !resumeA.trim()) {
+      setError('Please provide Candidate 1 GitHub username and resume text/file.');
+      return;
+    }
+    if (!usernameB.trim() || !resumeB.trim()) {
+      setError('Please provide Candidate 2 GitHub username and resume text/file.');
       return;
     }
 
@@ -91,38 +119,58 @@ Key Technical Skills:
     setResult(null);
 
     try {
-      const res = await fetch(`${apiBase}/api/verify-resume`, {
+      const targetUrl = apiBase ? `${apiBase}/api/compare-resumes` : '/api/compare-resumes';
+      const res = await fetch(targetUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          username: username.trim(),
-          resumeText: resumeText.trim()
+          candidateA: {
+            name: nameA.trim() || usernameA.trim(),
+            username: usernameA.trim(),
+            resumeText: resumeA.trim()
+          },
+          candidateB: {
+            name: nameB.trim() || usernameB.trim(),
+            username: usernameB.trim(),
+            resumeText: resumeB.trim()
+          },
+          targetRole: targetRole.trim()
         })
       });
-      const data = await res.json();
-      if (!res.ok || !data.success) {
-        throw new Error(data.error || 'Failed to verify resume claims.');
+
+      const contentType = res.headers.get('content-type') || '';
+      let data = null;
+
+      if (contentType.includes('application/json')) {
+        data = await res.json();
+      } else {
+        const rawText = await res.text();
+        throw new Error('Backend server is waking up or returned an unexpected response. Please wait 10 seconds and retry.');
       }
+
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'Failed to compare candidate resumes.');
+      }
+
       setResult(data);
     } catch (err) {
-      setError(err.message || 'Verification failed. Please retry.');
+      setError(err.message || 'Comparison failed. Free-tier backend might be starting up, please retry.');
     } finally {
       setIsLoading(false);
     }
   };
 
   const report = result?.report;
-  const matchScore = report?.match_score || 75;
 
   return (
     <div style={{ animation: 'fadeIn 0.3s ease-in-out' }}>
-      {/* Privacy & Anti-Leakage Shield Notice */}
+      {/* Privacy & Zero-Leakage Shield */}
       <div style={{
         background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.08), rgba(79, 70, 229, 0.08))',
         border: '1px solid rgba(16, 185, 129, 0.3)',
         borderRadius: 'var(--radius-lg)',
         padding: '16px 20px',
-        marginBottom: '28px',
+        marginBottom: '24px',
         display: 'flex',
         alignItems: 'center',
         gap: '14px',
@@ -142,15 +190,15 @@ Key Technical Skills:
         </div>
         <div>
           <div style={{ fontSize: '0.92rem', fontWeight: 700, color: 'var(--text-main)' }}>
-            Zero-Leakage Anti-Leak Privacy Architecture
+            Zero-Leakage Ephemeral Privacy Architecture
           </div>
           <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginTop: '2px', lineHeight: 1.4 }}>
-            Resumes are processed purely in ephemeral RAM with automated PII redaction (phones, emails, addresses stripped). <strong>Zero persistent storage</strong> — no candidate resume data is saved to disk or database.
+            Both candidate resumes are parsed in volatile RAM with automated PII scrubbers (phones, emails, addresses redacted). <strong>Zero persistent storage</strong> — no resumes are written to database or disk.
           </div>
         </div>
       </div>
 
-      {/* Input Form Card */}
+      {/* Main Dual Candidate Form Card */}
       <div style={{
         background: 'var(--surface)',
         border: '1px solid var(--border)',
@@ -159,14 +207,39 @@ Key Technical Skills:
         boxShadow: 'var(--shadow-md)',
         marginBottom: '28px'
       }}>
-        <div style={{ marginBottom: '20px' }}>
-          <h3 style={{ fontSize: '1.3rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <FileText size={22} color="#4f46e5" />
-            <span>Verify Resume Claims Against Real GitHub Footprint</span>
-          </h3>
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.88rem', marginTop: '4px' }}>
-            Upload a resume file or paste skill claims to cross-examine against the candidate's real repositories, languages, and commit history.
-          </p>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px', marginBottom: '20px' }}>
+          <div>
+            <h3 style={{ fontSize: '1.35rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Users size={22} color="#4f46e5" />
+              <span>Dual Candidate Resume ATS & GitHub Comparator</span>
+            </h3>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.88rem', marginTop: '4px' }}>
+              Upload or paste resumes for 2 candidates to compare ATS skill alignment and verify code authenticity against public GitHub repositories.
+            </p>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: 600 }}>Demo Pair:</span>
+            {samplePairs.map((p, i) => (
+              <button
+                key={i}
+                type="button"
+                onClick={() => handleApplySample(p)}
+                style={{
+                  padding: '5px 12px',
+                  borderRadius: 'var(--radius-full)',
+                  background: 'linear-gradient(135deg, rgba(79, 70, 229, 0.1), rgba(16, 185, 129, 0.1))',
+                  border: '1px solid rgba(79, 70, 229, 0.25)',
+                  color: '#4f46e5',
+                  fontSize: '0.78rem',
+                  fontWeight: 700,
+                  cursor: 'pointer'
+                }}
+              >
+                ⚡ {p.title}
+              </button>
+            ))}
+          </div>
         </div>
 
         {error && (
@@ -187,20 +260,19 @@ Key Technical Skills:
           </div>
         )}
 
-        <form onSubmit={handleVerify} style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
-          {/* Candidate Username */}
+        <form onSubmit={handleCompare} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          {/* Target Role Field */}
           <div>
             <label style={{ display: 'block', fontSize: '0.86rem', fontWeight: 700, marginBottom: '6px' }}>
-              Candidate GitHub Username
+              Target Job Role / Requirements (Optional)
             </label>
             <div style={{ position: 'relative' }}>
-              <Search size={15} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-subtle)' }} />
+              <Briefcase size={15} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-subtle)' }} />
               <input
                 type="text"
-                value={username}
-                onChange={e => setUsername(e.target.value)}
-                placeholder="e.g. gaearon, shadcn, or candidate username"
-                required
+                value={targetRole}
+                onChange={e => setTargetRole(e.target.value)}
+                placeholder="e.g. Senior Full-Stack Engineer (React, Node.js, Go)"
                 style={{
                   width: '100%',
                   padding: '10px 12px 10px 36px',
@@ -209,197 +281,293 @@ Key Technical Skills:
                   background: 'var(--bg)',
                   color: 'var(--text-main)',
                   outline: 'none',
-                  fontSize: '0.9rem'
+                  fontSize: '0.88rem'
                 }}
               />
             </div>
           </div>
 
-          {/* Input Method Toggle: File Upload vs Paste */}
-          <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', flexWrap: 'wrap', gap: '8px' }}>
-              <label style={{ fontSize: '0.86rem', fontWeight: 700 }}>
-                Candidate Resume / Claimed Skills
-              </label>
-
-              <div style={{ display: 'flex', gap: '6px' }}>
-                <button
-                  type="button"
-                  onClick={() => setInputMode('paste')}
-                  style={{
-                    padding: '4px 10px',
-                    borderRadius: 'var(--radius-sm)',
-                    background: inputMode === 'paste' ? 'var(--surface-raised)' : 'transparent',
-                    border: '1px solid var(--border)',
-                    fontSize: '0.76rem',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    color: inputMode === 'paste' ? 'var(--text-main)' : 'var(--text-muted)'
-                  }}
-                >
-                  📋 Paste Text
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setInputMode('upload');
-                    fileInputRef.current?.click();
-                  }}
-                  style={{
-                    padding: '4px 10px',
-                    borderRadius: 'var(--radius-sm)',
-                    background: inputMode === 'upload' ? 'var(--surface-raised)' : 'transparent',
-                    border: '1px solid var(--border)',
-                    fontSize: '0.76rem',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    color: inputMode === 'upload' ? 'var(--text-main)' : 'var(--text-muted)',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '4px'
-                  }}
-                >
-                  <UploadCloud size={13} />
-                  <span>Upload File</span>
-                </button>
+          {/* 2-Column Dual Candidate Inputs */}
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+            gap: '20px'
+          }}>
+            {/* CANDIDATE A CARD */}
+            <div style={{
+              background: 'var(--surface-raised)',
+              border: '1px solid var(--border)',
+              borderRadius: 'var(--radius-md)',
+              padding: '18px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '12px'
+            }}>
+              <div style={{ fontSize: '0.92rem', fontWeight: 800, color: '#4f46e5', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span style={{ width: '20px', height: '20px', borderRadius: '50%', background: '#4f46e5', color: '#fff', fontSize: '0.74rem', display: 'grid', placeItems: 'center' }}>1</span>
+                <span>Candidate A</span>
               </div>
-            </div>
 
-            {/* Hidden File Input */}
-            <input
-              type="file"
-              ref={fileInputRef}
-              onChange={handleFileUpload}
-              accept=".txt,.md,.pdf,.json,.doc,.docx"
-              style={{ display: 'none' }}
-            />
+              <div>
+                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '4px' }}>Candidate Name</label>
+                <input
+                  type="text"
+                  value={nameA}
+                  onChange={e => setNameA(e.target.value)}
+                  placeholder="e.g. Dan Abramov"
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px',
+                    borderRadius: 'var(--radius-sm)',
+                    border: '1px solid var(--border)',
+                    background: 'var(--bg)',
+                    color: 'var(--text-main)',
+                    fontSize: '0.86rem',
+                    outline: 'none'
+                  }}
+                />
+              </div>
 
-            {/* Upload File Banner if file chosen */}
-            {selectedFileName && (
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                padding: '10px 14px',
-                borderRadius: 'var(--radius-sm)',
-                background: 'var(--surface-raised)',
-                border: '1px solid var(--border)',
-                marginBottom: '10px',
-                fontSize: '0.84rem'
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <FileCheck size={16} color="#10b981" />
-                  <span>Selected File: <strong>{selectedFileName}</strong></span>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '4px' }}>GitHub Username *</label>
+                <div style={{ position: 'relative' }}>
+                  <Search size={14} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-subtle)' }} />
+                  <input
+                    type="text"
+                    value={usernameA}
+                    onChange={e => setUsernameA(e.target.value)}
+                    placeholder="e.g. gaearon"
+                    required
+                    style={{
+                      width: '100%',
+                      padding: '8px 12px 8px 32px',
+                      borderRadius: 'var(--radius-sm)',
+                      border: '1px solid var(--border)',
+                      background: 'var(--bg)',
+                      color: 'var(--text-main)',
+                      fontSize: '0.86rem',
+                      outline: 'none'
+                    }}
+                  />
                 </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSelectedFileName(null);
-                    setResumeText('');
-                  }}
-                  style={{ background: 'none', border: 'none', color: 'var(--danger-text)', cursor: 'pointer', padding: 0 }}
-                >
-                  <Trash2 size={14} />
-                </button>
               </div>
-            )}
 
-            {/* Quick Sample Selector Pills */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px', flexWrap: 'wrap' }}>
-              <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>Quick Samples:</span>
-              <button
-                type="button"
-                onClick={() => {
-                  setResumeText(sampleResumes.fullstack);
-                  setSelectedFileName(null);
-                }}
-                style={{ background: 'var(--surface-raised)', border: '1px solid var(--border)', padding: '2px 8px', borderRadius: 'var(--radius-full)', fontSize: '0.74rem', cursor: 'pointer' }}
-              >
-                Full-Stack Engineer
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setResumeText(sampleResumes.frontend);
-                  setSelectedFileName(null);
-                }}
-                style={{ background: 'var(--surface-raised)', border: '1px solid var(--border)', padding: '2px 8px', borderRadius: 'var(--radius-full)', fontSize: '0.74rem', cursor: 'pointer' }}
-              >
-                Frontend Architect
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setResumeText(sampleResumes.backend);
-                  setSelectedFileName(null);
-                }}
-                style={{ background: 'var(--surface-raised)', border: '1px solid var(--border)', padding: '2px 8px', borderRadius: 'var(--radius-full)', fontSize: '0.74rem', cursor: 'pointer' }}
-              >
-                Backend & Distributed
-              </button>
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                  <label style={{ fontSize: '0.8rem', fontWeight: 600 }}>Resume A Content *</label>
+                  <div style={{ display: 'flex', gap: '4px' }}>
+                    <button
+                      type="button"
+                      onClick={() => setModeA('paste')}
+                      style={{ padding: '2px 8px', borderRadius: '4px', background: modeA === 'paste' ? 'var(--surface)' : 'transparent', border: '1px solid var(--border)', fontSize: '0.72rem', cursor: 'pointer' }}
+                    >
+                      Paste
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setModeA('upload');
+                        fileInputRefA.current?.click();
+                      }}
+                      style={{ padding: '2px 8px', borderRadius: '4px', background: modeA === 'upload' ? 'var(--surface)' : 'transparent', border: '1px solid var(--border)', fontSize: '0.72rem', cursor: 'pointer' }}
+                    >
+                      ☁️ Upload
+                    </button>
+                  </div>
+                </div>
+
+                <input
+                  type="file"
+                  ref={fileInputRefA}
+                  onChange={e => handleFileUpload(e.target.files?.[0], setFileA, setResumeA)}
+                  accept=".txt,.md,.pdf,.json,.doc,.docx"
+                  style={{ display: 'none' }}
+                />
+
+                {fileA && (
+                  <div style={{ fontSize: '0.76rem', color: 'var(--accent-text)', marginBottom: '6px' }}>
+                    ✓ Loaded: <strong>{fileA}</strong>
+                  </div>
+                )}
+
+                <textarea
+                  value={resumeA}
+                  onChange={e => setResumeA(e.target.value)}
+                  placeholder="Paste Candidate A resume text or claimed skills..."
+                  rows={6}
+                  required
+                  style={{
+                    width: '100%',
+                    padding: '10px',
+                    borderRadius: 'var(--radius-sm)',
+                    border: '1px solid var(--border)',
+                    background: 'var(--bg)',
+                    color: 'var(--text-main)',
+                    fontFamily: 'var(--font-sans)',
+                    fontSize: '0.82rem',
+                    outline: 'none',
+                    resize: 'vertical'
+                  }}
+                />
+              </div>
             </div>
 
-            {/* Resume Textarea */}
-            <textarea
-              value={resumeText}
-              onChange={e => {
-                setResumeText(e.target.value);
-                setSelectedFileName(null);
-              }}
-              placeholder="Paste candidate resume text, project summaries, or technical skill claims here..."
-              rows={6}
-              required
-              style={{
-                width: '100%',
-                padding: '12px',
-                borderRadius: 'var(--radius-sm)',
-                border: '1px solid var(--border)',
-                background: 'var(--bg)',
-                color: 'var(--text-main)',
-                fontFamily: 'var(--font-sans)',
-                fontSize: '0.86rem',
-                outline: 'none',
-                resize: 'vertical'
-              }}
-            />
+            {/* CANDIDATE B CARD */}
+            <div style={{
+              background: 'var(--surface-raised)',
+              border: '1px solid var(--border)',
+              borderRadius: 'var(--radius-md)',
+              padding: '18px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '12px'
+            }}>
+              <div style={{ fontSize: '0.92rem', fontWeight: 800, color: '#ec4899', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span style={{ width: '20px', height: '20px', borderRadius: '50%', background: '#ec4899', color: '#fff', fontSize: '0.74rem', display: 'grid', placeItems: 'center' }}>2</span>
+                <span>Candidate B</span>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '4px' }}>Candidate Name</label>
+                <input
+                  type="text"
+                  value={nameB}
+                  onChange={e => setNameB(e.target.value)}
+                  placeholder="e.g. shadcn"
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px',
+                    borderRadius: 'var(--radius-sm)',
+                    border: '1px solid var(--border)',
+                    background: 'var(--bg)',
+                    color: 'var(--text-main)',
+                    fontSize: '0.86rem',
+                    outline: 'none'
+                  }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '4px' }}>GitHub Username *</label>
+                <div style={{ position: 'relative' }}>
+                  <Search size={14} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-subtle)' }} />
+                  <input
+                    type="text"
+                    value={usernameB}
+                    onChange={e => setUsernameB(e.target.value)}
+                    placeholder="e.g. shadcn"
+                    required
+                    style={{
+                      width: '100%',
+                      padding: '8px 12px 8px 32px',
+                      borderRadius: 'var(--radius-sm)',
+                      border: '1px solid var(--border)',
+                      background: 'var(--bg)',
+                      color: 'var(--text-main)',
+                      fontSize: '0.86rem',
+                      outline: 'none'
+                    }}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                  <label style={{ fontSize: '0.8rem', fontWeight: 600 }}>Resume B Content *</label>
+                  <div style={{ display: 'flex', gap: '4px' }}>
+                    <button
+                      type="button"
+                      onClick={() => setModeB('paste')}
+                      style={{ padding: '2px 8px', borderRadius: '4px', background: modeB === 'paste' ? 'var(--surface)' : 'transparent', border: '1px solid var(--border)', fontSize: '0.72rem', cursor: 'pointer' }}
+                    >
+                      Paste
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setModeB('upload');
+                        fileInputRefB.current?.click();
+                      }}
+                      style={{ padding: '2px 8px', borderRadius: '4px', background: modeB === 'upload' ? 'var(--surface)' : 'transparent', border: '1px solid var(--border)', fontSize: '0.72rem', cursor: 'pointer' }}
+                    >
+                      ☁️ Upload
+                    </button>
+                  </div>
+                </div>
+
+                <input
+                  type="file"
+                  ref={fileInputRefB}
+                  onChange={e => handleFileUpload(e.target.files?.[0], setFileB, setResumeB)}
+                  accept=".txt,.md,.pdf,.json,.doc,.docx"
+                  style={{ display: 'none' }}
+                />
+
+                {fileB && (
+                  <div style={{ fontSize: '0.76rem', color: 'var(--accent-text)', marginBottom: '6px' }}>
+                    ✓ Loaded: <strong>{fileB}</strong>
+                  </div>
+                )}
+
+                <textarea
+                  value={resumeB}
+                  onChange={e => setResumeB(e.target.value)}
+                  placeholder="Paste Candidate B resume text or claimed skills..."
+                  rows={6}
+                  required
+                  style={{
+                    width: '100%',
+                    padding: '10px',
+                    borderRadius: 'var(--radius-sm)',
+                    border: '1px solid var(--border)',
+                    background: 'var(--bg)',
+                    color: 'var(--text-main)',
+                    fontFamily: 'var(--font-sans)',
+                    fontSize: '0.82rem',
+                    outline: 'none',
+                    resize: 'vertical'
+                  }}
+                />
+              </div>
+            </div>
           </div>
 
           <button
             type="submit"
             disabled={isLoading}
             style={{
-              padding: '13px',
+              padding: '14px',
               borderRadius: 'var(--radius-md)',
               background: '#0f172a',
               color: '#fff',
               fontWeight: 700,
-              fontSize: '0.94rem',
+              fontSize: '0.96rem',
               border: 'none',
               cursor: isLoading ? 'not-allowed' : 'pointer',
               display: 'inline-flex',
               alignItems: 'center',
               justifyContent: 'center',
-              gap: '8px',
+              gap: '10px',
               boxShadow: '0 4px 14px rgba(15, 23, 42, 0.25)',
               transition: 'all 0.15s ease'
             }}
           >
             {isLoading ? (
               <>
-                <div style={{ width: '16px', height: '16px', border: '2px solid rgba(255,255,255,0.3)', borderTopColor: '#fff', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
-                <span>Cross-Examining Claims Against GitHub Footprint…</span>
+                <div style={{ width: '18px', height: '18px', border: '2px solid rgba(255,255,255,0.3)', borderTopColor: '#fff', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+                <span>Auditing Resumes & Crawling GitHub Footprints…</span>
               </>
             ) : (
               <>
-                <ShieldCheck size={18} />
-                <span>Verify Resume vs. GitHub Claims</span>
+                <ShieldCheck size={20} />
+                <span>Run Dual Resume ATS & GitHub Audit</span>
               </>
             )}
           </button>
         </form>
       </div>
 
-      {/* Verification Output Dossier */}
+      {/* COMPARISON RESULTS DOSSIER */}
       {result && report && (
         <div style={{
           background: 'var(--surface)',
@@ -409,146 +577,184 @@ Key Technical Skills:
           boxShadow: 'var(--shadow-md)',
           animation: 'fadeIn 0.3s ease-in-out'
         }}>
-          {/* Header & Score Gauge */}
+          {/* Executive Verdict Banner */}
           <div style={{
+            background: 'linear-gradient(135deg, rgba(79, 70, 229, 0.08), rgba(16, 185, 129, 0.08))',
+            border: '1.5px solid rgba(79, 70, 229, 0.3)',
+            borderRadius: 'var(--radius-md)',
+            padding: '20px',
+            marginBottom: '24px',
             display: 'flex',
+            alignItems: 'center',
             justifyContent: 'space-between',
-            alignItems: 'flex-start',
-            gap: '20px',
             flexWrap: 'wrap',
-            borderBottom: '1px solid var(--border)',
-            paddingBottom: '20px',
-            marginBottom: '20px'
+            gap: '16px'
           }}>
             <div>
-              <div style={{ fontSize: '0.78rem', color: 'var(--text-subtle)', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.05em' }}>
-                Resume Verification Audit
+              <div style={{ fontSize: '0.78rem', color: '#4f46e5', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                ★ ATS Recommendation & Verdict
               </div>
-              <h2 style={{ fontSize: '1.8rem', fontWeight: 800, marginTop: '2px' }}>
-                @{result.username}
-              </h2>
-              <p style={{ color: 'var(--text-muted)', fontSize: '0.88rem', marginTop: '4px', maxWidth: '520px', lineHeight: 1.5 }}>
-                {report.summary}
+              <div style={{ fontSize: '1.25rem', fontWeight: 800, marginTop: '2px' }}>
+                Recommended Fit: <span style={{ color: '#10b981' }}>{report.recommended_candidate}</span>
+              </div>
+              <p style={{ fontSize: '0.86rem', color: 'var(--text-muted)', marginTop: '4px', maxWidth: '650px', lineHeight: 1.45 }}>
+                {report.recommendation_rationale || report.verdict_summary}
               </p>
             </div>
 
-            <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', marginBottom: '4px' }}>
-                Claims Match Fidelity
-              </div>
-              <ScoreRing score={matchScore} />
+            <div style={{
+              padding: '8px 16px',
+              borderRadius: 'var(--radius-full)',
+              background: '#0f172a',
+              color: '#fff',
+              fontWeight: 700,
+              fontSize: '0.84rem',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px'
+            }}>
+              <Award size={16} color="#10b981" />
+              <span>Target: {result.targetRole}</span>
             </div>
           </div>
 
-          {/* 2-Column Skills Breakdown: Verified vs Unverified */}
+          {/* Side-by-Side Dual Candidate ATS Gauges */}
           <div style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
-            gap: '16px',
-            marginBottom: '20px'
+            gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+            gap: '20px',
+            marginBottom: '24px'
           }}>
-            {/* Verified Skills */}
+            {/* Candidate A Column */}
             <div style={{
               background: 'var(--surface-raised)',
               border: '1px solid var(--border)',
               borderRadius: 'var(--radius-md)',
-              padding: '18px'
+              padding: '20px',
+              textAlign: 'center'
             }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.94rem', fontWeight: 700, color: 'var(--accent-text)', marginBottom: '10px' }}>
-                <CheckCircle2 size={16} />
-                <span>Verified Public Code Evidence</span>
+              <div style={{ fontSize: '1.3rem', fontWeight: 800, marginBottom: '2px' }}>
+                {report.candidate_a.name}
               </div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                {(report.verified_skills || []).map((skill, i) => (
-                  <span key={i} style={{
-                    padding: '4px 10px',
-                    borderRadius: 'var(--radius-full)',
-                    background: 'var(--accent-dim)',
-                    color: 'var(--accent-text)',
-                    fontSize: '0.82rem',
-                    fontWeight: 600,
-                    fontFamily: 'var(--font-mono)'
-                  }}>
-                    ✓ {skill}
-                  </span>
-                ))}
+              <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginBottom: '14px' }}>
+                @{report.candidate_a.username}
               </div>
-            </div>
 
-            {/* Unverified Claims */}
-            <div style={{
-              background: 'var(--surface-raised)',
-              border: '1px solid var(--border)',
-              borderRadius: 'var(--radius-md)',
-              padding: '18px'
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.94rem', fontWeight: 700, color: 'var(--warn-text)', marginBottom: '10px' }}>
-                <AlertTriangle size={16} />
-                <span>Unconfirmed in Public Repositories</span>
+              <div style={{ margin: '0 auto 12px' }}>
+                <ScoreRing score={report.candidate_a.ats_match_score || 80} />
               </div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                {(report.unverified_skills || []).map((skill, i) => (
-                  <span key={i} style={{
-                    padding: '4px 10px',
-                    borderRadius: 'var(--radius-full)',
-                    background: 'var(--warn-dim)',
-                    color: 'var(--warn-text)',
-                    fontSize: '0.82rem',
-                    fontWeight: 600,
-                    fontFamily: 'var(--font-mono)'
-                  }}>
-                    • {skill}
-                  </span>
-                ))}
+              <div style={{ fontSize: '0.78rem', color: 'var(--text-subtle)', textTransform: 'uppercase', fontWeight: 700, marginBottom: '16px' }}>
+                ATS Match & Code Evidence
               </div>
-              <div style={{ fontSize: '0.74rem', color: 'var(--text-subtle)', marginTop: '8px' }}>
-                May have been used exclusively in private client/company codebases.
-              </div>
-            </div>
-          </div>
 
-          {/* Timeline Consistency */}
-          <div style={{
-            background: 'var(--surface-raised)',
-            border: '1px solid var(--border)',
-            borderRadius: 'var(--radius-md)',
-            padding: '18px',
-            marginBottom: '20px'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.94rem', fontWeight: 700, marginBottom: '6px' }}>
-              <Calendar size={16} color="#4f46e5" />
-              <span>Experience Timeline Consistency</span>
-            </div>
-            <p style={{ fontSize: '0.88rem', color: 'var(--text-main)', lineHeight: 1.5 }}>
-              {report.timeline_consistency || 'Timeline analysis calculated against first commit timestamp.'}
-            </p>
-          </div>
-
-          {/* Cross-Examination Interview Prompts */}
-          <div style={{
-            background: 'linear-gradient(135deg, rgba(79, 70, 229, 0.04), rgba(16, 185, 129, 0.04))',
-            border: '1.5px solid rgba(79, 70, 229, 0.25)',
-            borderRadius: 'var(--radius-md)',
-            padding: '20px'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '1rem', fontWeight: 700, marginBottom: '12px' }}>
-              <HelpCircle size={18} color="#4f46e5" />
-              <span>Targeted Cross-Examination Screening Questions</span>
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              {(report.cross_examination_questions || []).map((q, i) => (
-                <div key={i} style={{
-                  background: 'var(--surface)',
-                  border: '1px solid var(--border)',
-                  borderRadius: 'var(--radius-sm)',
-                  padding: '12px 14px',
-                  fontSize: '0.88rem',
-                  color: 'var(--text-main)',
-                  lineHeight: 1.45
-                }}>
-                  <strong>Q{i + 1}:</strong> "{q}"
+              {/* Verified Skills */}
+              <div style={{ textAlign: 'left', marginBottom: '14px' }}>
+                <div style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--accent-text)', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <CheckCircle2 size={14} />
+                  <span>Verified in Public Repos</span>
                 </div>
-              ))}
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                  {(report.candidate_a.verified_skills || []).map((s, i) => (
+                    <span key={i} style={{ padding: '2px 8px', borderRadius: '4px', background: 'var(--accent-dim)', color: 'var(--accent-text)', fontSize: '0.76rem', fontWeight: 600 }}>
+                      ✓ {s}
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              {/* Unverified Skills */}
+              <div style={{ textAlign: 'left', marginBottom: '14px' }}>
+                <div style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--warn-text)', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <AlertTriangle size={14} />
+                  <span>Unconfirmed Claims</span>
+                </div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                  {(report.candidate_a.unverified_skills || []).map((s, i) => (
+                    <span key={i} style={{ padding: '2px 8px', borderRadius: '4px', background: 'var(--warn-dim)', color: 'var(--warn-text)', fontSize: '0.76rem', fontWeight: 600 }}>
+                      • {s}
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              {/* Screening Questions */}
+              <div style={{ textAlign: 'left', background: 'var(--surface)', padding: '12px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)' }}>
+                <div style={{ fontSize: '0.8rem', fontWeight: 700, marginBottom: '6px', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <HelpCircle size={14} color="#4f46e5" />
+                  <span>Interview Questions for {report.candidate_a.name}</span>
+                </div>
+                {(report.candidate_a.interview_questions || []).map((q, i) => (
+                  <div key={i} style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '4px', lineHeight: 1.35 }}>
+                    <strong>Q{i + 1}:</strong> "{q}"
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Candidate B Column */}
+            <div style={{
+              background: 'var(--surface-raised)',
+              border: '1px solid var(--border)',
+              borderRadius: 'var(--radius-md)',
+              padding: '20px',
+              textAlign: 'center'
+            }}>
+              <div style={{ fontSize: '1.3rem', fontWeight: 800, marginBottom: '2px' }}>
+                {report.candidate_b.name}
+              </div>
+              <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginBottom: '14px' }}>
+                @{report.candidate_b.username}
+              </div>
+
+              <div style={{ margin: '0 auto 12px' }}>
+                <ScoreRing score={report.candidate_b.ats_match_score || 75} />
+              </div>
+              <div style={{ fontSize: '0.78rem', color: 'var(--text-subtle)', textTransform: 'uppercase', fontWeight: 700, marginBottom: '16px' }}>
+                ATS Match & Code Evidence
+              </div>
+
+              {/* Verified Skills */}
+              <div style={{ textAlign: 'left', marginBottom: '14px' }}>
+                <div style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--accent-text)', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <CheckCircle2 size={14} />
+                  <span>Verified in Public Repos</span>
+                </div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                  {(report.candidate_b.verified_skills || []).map((s, i) => (
+                    <span key={i} style={{ padding: '2px 8px', borderRadius: '4px', background: 'var(--accent-dim)', color: 'var(--accent-text)', fontSize: '0.76rem', fontWeight: 600 }}>
+                      ✓ {s}
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              {/* Unverified Skills */}
+              <div style={{ textAlign: 'left', marginBottom: '14px' }}>
+                <div style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--warn-text)', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <AlertTriangle size={14} />
+                  <span>Unconfirmed Claims</span>
+                </div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                  {(report.candidate_b.unverified_skills || []).map((s, i) => (
+                    <span key={i} style={{ padding: '2px 8px', borderRadius: '4px', background: 'var(--warn-dim)', color: 'var(--warn-text)', fontSize: '0.76rem', fontWeight: 600 }}>
+                      • {s}
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              {/* Screening Questions */}
+              <div style={{ textAlign: 'left', background: 'var(--surface)', padding: '12px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)' }}>
+                <div style={{ fontSize: '0.8rem', fontWeight: 700, marginBottom: '6px', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <HelpCircle size={14} color="#ec4899" />
+                  <span>Interview Questions for {report.candidate_b.name}</span>
+                </div>
+                {(report.candidate_b.interview_questions || []).map((q, i) => (
+                  <div key={i} style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '4px', lineHeight: 1.35 }}>
+                    <strong>Q{i + 1}:</strong> "{q}"
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </div>
