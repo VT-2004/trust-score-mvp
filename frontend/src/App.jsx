@@ -9,7 +9,7 @@ import AnalyticsDashboard from './components/AnalyticsDashboard.jsx';
 import ReviewsView from './components/ReviewsView.jsx';
 import AuthModal from './components/AuthModal.jsx';
 import ReviewGateModal from './components/ReviewGateModal.jsx';
-import { AlertCircle } from 'lucide-react';
+import { AlertCircle, CheckCircle2, ArrowRight, Sparkles, FileCheck, ShieldCheck } from 'lucide-react';
 
 const RENDER_BACKEND = 'https://trust-score-mvp.onrender.com';
 const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
@@ -18,12 +18,14 @@ const API_BASE = isLocal
   : (window.location.hostname.includes('onrender.com') ? '' : RENDER_BACKEND);
 
 function DashboardContent() {
-  const [activeTab, setActiveTab] = useState('analyzer'); // 'analyzer' | 'history' | 'analytics' | 'reviews'
+  const [activeTab, setActiveTab] = useState('analyzer'); // 'analyzer' | 'result' | 'history' | 'analytics' | 'reviews'
+  const [previousTab, setPreviousTab] = useState('analyzer');
   const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'light');
   const [isOnline, setIsOnline] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [reportData, setReportData] = useState(null);
+  const [newlyCompletedUser, setNewlyCompletedUser] = useState(null);
   const [errorMessage, setErrorMessage] = useState(null);
   const [isFeedbackModalOpen, setIsFeedbackModalOpen] = useState(false);
 
@@ -55,7 +57,7 @@ function DashboardContent() {
         .then(data => {
           if (data && data.report_json) {
             setReportData({ username: data.username, reportId: data.id, ...data.report_json });
-            setActiveTab('analyzer');
+            setActiveTab('result');
           }
           setIsLoading(false);
         })
@@ -68,10 +70,9 @@ function DashboardContent() {
       setIsRefreshing(true);
     } else {
       setIsLoading(true);
-      setReportData(null);
+      setNewlyCompletedUser(null);
     }
     setErrorMessage(null);
-    setActiveTab('analyzer');
 
     try {
       const res = await fetch(`${API_BASE}/api/analyze`, {
@@ -85,6 +86,7 @@ function DashboardContent() {
         setErrorMessage(data.error || 'Analysis failed. Please check the username.');
       } else {
         setReportData(data);
+        setNewlyCompletedUser(data.username);
         if (data.reportId) {
           window.history.pushState({}, '', `${window.location.pathname}?report=${data.reportId}`);
         }
@@ -99,7 +101,19 @@ function DashboardContent() {
 
   const handleSelectHistoryReport = (report) => {
     setReportData(report);
-    setActiveTab('analyzer');
+    setPreviousTab('history');
+    setActiveTab('result');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleGoToResults = () => {
+    setPreviousTab('analyzer');
+    setActiveTab('result');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleBackFromResults = () => {
+    setActiveTab(previousTab || 'analyzer');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -107,7 +121,10 @@ function DashboardContent() {
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       <Navbar
         activeTab={activeTab}
-        onSelectTab={setActiveTab}
+        onSelectTab={(tab) => {
+          setPreviousTab(activeTab);
+          setActiveTab(tab);
+        }}
         theme={theme}
         onToggleTheme={toggleTheme}
         isOnline={isOnline}
@@ -137,6 +154,7 @@ function DashboardContent() {
               </div>
             )}
 
+            {/* Running Crawl Indicator */}
             {isLoading && (
               <div style={{
                 background: 'var(--surface)',
@@ -157,28 +175,93 @@ function DashboardContent() {
                   margin: '0 auto 16px'
                 }} />
                 <div style={{ fontWeight: 700, fontSize: '1.1rem', marginBottom: '6px' }}>
-                  Analyzing Candidate Portfolio…
+                  Auditing Candidate Profile…
                 </div>
                 <div style={{ color: 'var(--text-muted)', fontSize: '0.88rem', fontFamily: 'var(--font-mono)' }}>
-                  Concurrent repo crawl · commit entropy & rhythm checking · synthesizing report
+                  Concurrent repo crawl · commit entropy & rhythm analysis · synthesizing report
                 </div>
               </div>
             )}
 
-            {reportData && (
-              <ReportView
-                reportData={reportData}
-                onRefresh={() => handleSearch(reportData.username, true)}
-                isRefreshing={isRefreshing}
-                apiBase={API_BASE}
-              />
+            {/* Newly Completed Analysis Prompt: Click to View Results */}
+            {newlyCompletedUser && reportData && !isLoading && (
+              <div style={{
+                background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.08), rgba(79, 70, 229, 0.08))',
+                border: '1.5px solid rgba(16, 185, 129, 0.3)',
+                borderRadius: 'var(--radius-lg)',
+                padding: '24px',
+                marginBottom: '28px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                flexWrap: 'wrap',
+                gap: '16px',
+                boxShadow: 'var(--shadow-md)'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                  <div style={{
+                    width: '44px',
+                    height: '44px',
+                    borderRadius: '12px',
+                    background: '#10b981',
+                    color: '#fff',
+                    display: 'grid',
+                    placeItems: 'center',
+                    boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)'
+                  }}>
+                    <FileCheck size={24} />
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '1.15rem', fontWeight: 800 }}>
+                      Analysis Complete for @{newlyCompletedUser}!
+                    </div>
+                    <div style={{ fontSize: '0.86rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                      Consistency signals and interview questions are ready for review.
+                    </div>
+                  </div>
+                </div>
+
+                <button
+                  onClick={handleGoToResults}
+                  style={{
+                    padding: '12px 24px',
+                    borderRadius: 'var(--radius-md)',
+                    background: '#0f172a',
+                    color: '#fff',
+                    fontWeight: 700,
+                    fontSize: '0.94rem',
+                    border: 'none',
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    boxShadow: '0 4px 14px rgba(15, 23, 42, 0.25)',
+                    transition: 'all 0.15s ease'
+                  }}
+                >
+                  <span>View Full Analysis Results</span>
+                  <ArrowRight size={16} />
+                </button>
+              </div>
             )}
 
             <RecentFeed apiBase={API_BASE} />
           </>
         )}
 
-        {/* TAB 2: Tests History & Results */}
+        {/* TAB 2: Dedicated Results Page */}
+        {activeTab === 'result' && reportData && (
+          <ReportView
+            reportData={reportData}
+            onRefresh={() => handleSearch(reportData.username, true)}
+            isRefreshing={isRefreshing}
+            apiBase={API_BASE}
+            onBack={handleBackFromResults}
+            fromTab={previousTab}
+          />
+        )}
+
+        {/* TAB 3: Tests History & Results */}
         {activeTab === 'history' && (
           <TestsHistoryView
             apiBase={API_BASE}
@@ -186,12 +269,12 @@ function DashboardContent() {
           />
         )}
 
-        {/* TAB 3: Platform Analytics Dashboard */}
+        {/* TAB 4: Platform Analytics Dashboard */}
         {activeTab === 'analytics' && (
           <AnalyticsDashboard apiBase={API_BASE} />
         )}
 
-        {/* TAB 4: Community Reviews & Ratings */}
+        {/* TAB 5: Community Reviews & Ratings */}
         {activeTab === 'reviews' && (
           <ReviewsView
             apiBase={API_BASE}
