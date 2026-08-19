@@ -16,7 +16,11 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-app.use(express.static(path.join(__dirname, "..", "..", "frontend")));
+import fs from "fs";
+
+const distPath = path.join(__dirname, "..", "..", "frontend", "dist");
+const staticPath = fs.existsSync(distPath) ? distPath : path.join(__dirname, "..", "..", "frontend");
+app.use(express.static(staticPath));
 
 app.get("/api/health", (req, res) => {
   res.json({

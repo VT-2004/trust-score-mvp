@@ -1,0 +1,87 @@
+:root {
+  --bg: #f8fafc;
+  --bg-mesh: radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.06) 0px, transparent 50%),
+             radial-gradient(at 100% 0%, rgba(16, 185, 129, 0.06) 0px, transparent 50%),
+             radial-gradient(at 50% 100%, rgba(14, 165, 233, 0.04) 0px, transparent 50%);
+  --surface: #ffffff;
+  --surface-raised: #f1f5f9;
+  --surface-glass: rgba(255, 255, 255, 0.88);
+  --border: #e2e8f0;
+  --border-hover: #cbd5e1;
+  
+  --text-main: #0f172a;
+  --text-muted: #64748b;
+  --text-subtle: #94a3b8;
+  
+  --primary: #0f172a;
+  --primary-hover: #1e293b;
+  
+  --accent: #10b981;
+  --accent-dim: rgba(16, 185, 129, 0.1);
+  --accent-text: #047857;
+  
+  --warn: #f59e0b;
+  --warn-dim: rgba(245, 158, 11, 0.1);
+  --warn-text: #b45309;
+  
+  --danger: #ef4444;
+  --danger-dim: rgba(239, 68, 68, 0.1);
+  --danger-text: #b91c1c;
+
+  --info: #3b82f6;
+  --info-dim: rgba(59, 130, 246, 0.1);
+  --info-text: #1d4ed8;
+
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 18px;
+  --radius-full: 9999px;
+
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.06), 0 2px 4px -2px rgba(0, 0, 0, 0.04);
+  --shadow-lg: 0 12px 24px -4px rgba(0, 0, 0, 0.08), 0 4px 6px -2px rgba(0, 0, 0, 0.03);
+  
+  --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+}
+
+[data-theme="dark"] {
+  --bg: #090d16;
+  --bg-mesh: radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.12) 0px, transparent 50%),
+             radial-gradient(at 100% 0%, rgba(16, 185, 129, 0.08) 0px, transparent 50%);
+  --surface: #111726;
+  --surface-raised: #192237;
+  --surface-glass: rgba(17, 23, 38, 0.88);
+  --border: #1e293b;
+  --border-hover: #334155;
+  --text-main: #f8fafc;
+  --text-muted: #94a3b8;
+  --text-subtle: #64748b;
+  --primary: #f8fafc;
+  --primary-hover: #e2e8f0;
+  --accent-text: #34d399;
+  --warn-text: #fbbf24;
+  --danger-text: #f87171;
+  --info-text: #60a5fa;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: var(--font-sans);
+  background-color: var(--bg);
+  background-image: var(--bg-mesh);
+  background-attachment: fixed;
+  color: var(--text-main);
+  line-height: 1.5;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+
+button {
+  font-family: var(--font-sans);
+}
+
+input {
+  font-family: var(--font-sans);
+}
