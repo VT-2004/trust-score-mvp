@@ -23,6 +23,15 @@ async function ensureInitialized() {
       created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
       report_json JSONB NOT NULL
     );
+    CREATE TABLE IF NOT EXISTS reviews (
+      id SERIAL PRIMARY KEY,
+      username TEXT NOT NULL,
+      rating INT NOT NULL,
+      reviewer_role TEXT,
+      comment TEXT NOT NULL,
+      candidate_analyzed TEXT,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
   `);
   initialized = true;
 }
@@ -74,6 +83,25 @@ export async function getLatestReportForUser(username) {
     [username]
   );
   return result.rows[0] || null;
+}
+
+// Reviews & Ratings
+export async function saveReview({ username, rating, reviewerRole, comment, candidateAnalyzed }) {
+  await ensureInitialized();
+  const result = await pool.query(
+    "INSERT INTO reviews (username, rating, reviewer_role, comment, candidate_analyzed, created_at) VALUES ($1, $2, $3, $4, $5, now()) RETURNING id, created_at",
+    [username || "Anonymous Tester", rating || 5, reviewerRole || "Tester", comment || "", candidateAnalyzed || ""]
+  );
+  return result.rows[0];
+}
+
+export async function listReviews(limit = 50) {
+  await ensureInitialized();
+  const result = await pool.query(
+    "SELECT id, username, rating, reviewer_role, comment, candidate_analyzed, created_at FROM reviews ORDER BY created_at DESC LIMIT $1",
+    [limit]
+  );
+  return result.rows;
 }
 
 export default pool;

@@ -7,7 +7,7 @@ import { fileURLToPath } from "url";
 import { getUserRepos, getRepoCommits, getUserProfile } from "./github.js";
 import { analyzeRepo, crossRepoConsistency, portfolioTimeline, looksLikeAssignment } from "./analyze.js";
 import { generateTrustReport } from "./groq.js";
-import { saveReport, getReport, listReportsForUser, listRecentReports, getLatestReportForUser } from "./db.js";
+import { saveReport, getReport, listReportsForUser, listRecentReports, getLatestReportForUser, saveReview, listReviews } from "./db.js";
 
 dotenv.config();
 
@@ -230,6 +230,39 @@ app.get("/api/dashboard", async (req, res) => {
     const limit = Math.min(parseInt(req.query.limit) || 30, 100);
     const reports = await listRecentReports(limit);
     res.json(reports);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Submit review & feedback
+app.post("/api/reviews", async (req, res) => {
+  try {
+    const { username, rating, reviewerRole, comment, candidateAnalyzed } = req.body;
+    if (!rating || !comment) {
+      return res.status(400).json({ error: "Rating and feedback comment are required." });
+    }
+    const review = await saveReview({
+      username: username || "Anonymous Tester",
+      rating: Number(rating),
+      reviewerRole: reviewerRole || "Tester",
+      comment,
+      candidateAnalyzed: candidateAnalyzed || ""
+    });
+    res.json({ success: true, review });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// List all community reviews
+app.get("/api/reviews", async (req, res) => {
+  try {
+    const limit = Math.min(parseInt(req.query.limit) || 50, 100);
+    const reviews = await listReviews(limit);
+    res.json(reviews);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: err.message });
