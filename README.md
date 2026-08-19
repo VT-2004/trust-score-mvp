@@ -1,85 +1,110 @@
-# Trust Score MVP — GitHub Authenticity Report
+<div align="center">
 
-An AI-assisted tool that analyzes a developer's public GitHub history and generates
-a "consistency/plausibility" report — useful for freelance clients or employers who
-want a second opinion on whether a candidate's claimed work looks authentic.
+# 🛡️ TrustScore AI — Developer Authenticity & Resume ATS Verifier
 
-**This is a signal tool, not a fraud detector.** It never accuses — it surfaces
-patterns (commit cadence, message quality, author consistency, timeline plausibility)
-and lets a human decide what to do with that context.
+[![Live Demo](https://img.shields.io/badge/Demo-trust--score--mvp.vercel.app-4f46e5?style=for-the-badge&logo=vercel&logoColor=white)](https://trust-score-mvp.vercel.app/)
+[![License](https://img.shields.io/badge/License-MIT-10b981?style=for-the-badge)](LICENSE)
+[![GitHub stars](https://img.shields.io/github/stars/VT-2004/trust-score-mvp?style=for-the-badge&color=f59e0b)](https://github.com/VT-2004/trust-score-mvp/stargazers)
+[![Status](https://img.shields.io/badge/Status-Active%20Production-success?style=for-the-badge)]()
 
-## How it works
+**Cross-examine candidate resumes, claimed skills, and commit entropy against live, public GitHub repository footprints.**
 
-1. You enter a GitHub username
-2. Backend pulls their public, non-fork repos + commit metadata via the GitHub API
-3. Rule-based signals are computed (no AI needed for this part — fast and free)
-4. Those signals are sent to Groq (free LLM API) which writes a plain-English report
-5. Report is saved to a local SQLite DB and shown in the browser
+[Explore Live Demo](https://trust-score-mvp.vercel.app/) • [Report Bug](https://github.com/VT-2004/trust-score-mvp/issues) • [Request Feature](https://github.com/VT-2004/trust-score-mvp/issues)
 
-## Setup (5 minutes)
+</div>
 
-### 1. Get your free API keys
+---
 
-**GitHub token** (raises rate limit from 60→5000 req/hour, optional but recommended):
-- Go to https://github.com/settings/tokens → "Generate new token (classic)"
-- Scope needed: `public_repo` only
-- Copy the token (starts with `ghp_`)
+## 🌟 Key Features
 
-**Groq API key** (free, no credit card):
-- Go to https://console.groq.com → sign up → "API Keys" → "Create API Key"
-- Copy the key (starts with `gsk_`)
+### 🔍 1. Developer Authenticity Profiler
+- **Deep Commit & Rhythm Analysis**: Audits commit timing entropy, midnight push ratios, single-burst vs organic commit distributions, and PR collaboration metrics.
+- **Assignment vs Standalone Repo Classification**: Distinguishes between tutorial forks, take-home coding challenges, and genuine production repositories.
+- **AI-Powered Plausibility & Interview Prompts**: Generates technical probing questions tailored to the candidate's actual commit footprint.
 
-### 2. Configure environment
+### 📄 2. Dual Candidate Resume ATS & GitHub Comparator
+- **Client-Side PDF Text Extraction**: In-browser text parser powered by `pdfjs-dist` to cleanly extract text from uploaded `.pdf`, `.docx`, and `.txt` resumes.
+- **Zero-Leakage PII Redaction**: Automatically sanitizes emails, phone numbers, and physical addresses before AI cross-examination.
+- **Side-by-Side ATS Scoring**: Compares candidate skill claims vs tangible repository proof and produces a definitive hiring verdict.
 
-```bash
-cd backend
-cp .env.example .env
-# open .env and paste your two keys in
+### ⚔️ 3. Head-to-Head Repository Comparator
+- Benchmark two GitHub profiles or repositories simultaneously across commit cadence, language diversity, and verified code signals.
+
+### 🔒 4. Privacy-First Architecture & Private Audit History
+- **100% Private Audits**: No candidate tests or credentials are broadcast publicly.
+- **5 Free Tests Guest Quota**: Visitors get 5 complimentary audits saved in `localStorage`.
+- **Database-Backed Accounts**: Register with Email & Password (with built-in password recovery) to unlock unlimited audits and sync local test history.
+
+---
+
+## 🏗️ Architecture & Tech Stack
+
+```mermaid
+graph TD
+    A[Frontend: React + Vite + Vanilla CSS] -->|Client PDF Extraction| B[pdfjs-dist]
+    A -->|REST API Requests| C[Backend: Express.js]
+    C -->|Fetch Profiles & Repos| D[GitHub REST API]
+    C -->|PII Redaction + Reasoning| E[Groq Llama-3 AI Engine]
+    C -->|User Accounts & Audit Logs| F[PostgreSQL / Neon DB]
+    A -->|Static Hosting| G[Vercel CDN]
+    C -->|Production Server| H[Render Web Service]
 ```
 
-### 3. Install and run
+- **Frontend**: React 18, Vite, Lucide Icons, PDF.js (`pdfjs-dist`), Vanilla Design System (Dark/Light mode, Glassmorphism, 100% Mobile Responsive).
+- **Backend**: Node.js, Express, `bcryptjs`, `jsonwebtoken`, `pg` (PostgreSQL), `multer`.
+- **AI & Analytics**: Groq Cloud (Llama-3-70B) with heuristic fallback engine.
 
+---
+
+## 🚀 Getting Started
+
+### Prerequisites
+- Node.js 18+
+- GitHub Personal Access Token (for raised API limits)
+- Groq API Key (free from [console.groq.com](https://console.groq.com))
+
+### 1. Clone & Install Dependencies
 ```bash
+git clone https://github.com/VT-2004/trust-score-mvp.git
+cd trust-score-mvp
+
+# Install backend dependencies
 cd backend
 npm install
+
+# Install frontend dependencies
+cd ../frontend
+npm install
+```
+
+### 2. Configure Environment Variables
+Create a `.env` file in the `backend/` directory:
+```env
+PORT=3001
+GITHUB_TOKEN=ghp_your_github_token
+GROQ_API_KEY=gsk_your_groq_api_key
+DATABASE_URL=postgres://user:password@host:5432/dbname
+JWT_SECRET=your_super_secret_jwt_key
+```
+
+### 3. Run Locally
+```bash
+# In backend/
 npm start
+
+# In frontend/ (in a separate terminal)
+npm run dev
 ```
 
-Open **http://localhost:3001** in your browser. Enter any public GitHub username and hit Analyze.
+Open [http://localhost:5173](http://localhost:5173) in your browser.
 
-## Project structure
+---
 
-```
-trust-score-mvp/
-├── backend/
-│   ├── src/
-│   │   ├── server.js      # Express API server
-│   │   ├── github.js      # GitHub API client
-│   │   ├── analyze.js     # Rule-based signal computation (the "hard" logic)
-│   │   ├── groq.js        # AI reasoning layer (Groq API call)
-│   │   └── db.js          # SQLite persistence
-│   ├── .env.example       # Copy to .env and fill in keys
-│   └── package.json
-├── frontend/
-│   └── index.html         # Single-page UI, no build step needed
-└── README.md
-```
+## 📄 License
+Distributed under the MIT License. See `LICENSE` for more information.
 
-## What's next (not built yet, for when you extend this)
+---
 
-- Cross-repo code style fingerprinting (tree-sitter AST comparison) — currently only
-  language-distribution comparison is implemented
-- Shareable public report URLs (the DB schema already supports it via `/api/report/:id`,
-  just needs a frontend route)
-- Swap Groq → Claude API later for stronger reasoning quality (same JSON schema,
-  just change the endpoint in `groq.js` / rename to `ai.js`)
-- Auth so freelancers can claim/own their reports (GitHub OAuth is the natural fit)
-
-## Known limitations (be upfront about these if you demo this)
-
-- Only analyzes **public** repos — most real freelance/client work is in private
-  repos and is invisible to this tool. This is the biggest honest limitation.
-- Signals are correlational, not conclusive — frame results as discussion starters,
-  never as verdicts.
-- Groq free tier: 30 requests/min, 1,000 requests/day — plenty for demos, not for
-  production traffic.
+<div align="center">
+  <sub>Built with ❤️ by <a href="https://github.com/VT-2004">VT-2004</a></sub>
+</div>
