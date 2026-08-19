@@ -85,3 +85,62 @@ button {
 input {
   font-family: var(--font-sans);
 }
+
+/* =========================================================
+   Print Styles for Clean 1-to-2 Page Executive Dossier
+   ========================================================= */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 10mm 12mm;
+  }
+
+  body {
+    background: #ffffff !important;
+    background-image: none !important;
+    color: #0f172a !important;
+    font-size: 11pt;
+  }
+
+  /* Hide interactive web UI */
+  nav,
+  .navbar,
+  footer,
+  button,
+  .theme-toggle,
+  .badge-pill,
+  .quick-picks,
+  .feed-section,
+  .search-card,
+  .hero,
+  .toolbar,
+  .repo-tabs,
+  .cards-grid,
+  .report-header,
+  .interview-card {
+    display: none !important;
+  }
+
+  /* Show the dedicated printable dossier */
+  .printable-dossier {
+    display: block !important;
+    width: 100% !important;
+  }
+
+  .dossier-page {
+    page-break-after: always;
+    break-after: page;
+    min-height: 980px !important;
+    box-sizing: border-box;
+  }
+
+  .dossier-page:last-child {
+    page-break-after: avoid;
+    break-after: avoid;
+  }
+
+  .page-break {
+    page-break-before: always;
+    break-before: page;
+  }
+}

@@ -3,6 +3,7 @@ import ScoreRing from './ScoreRing.jsx';
 import InterviewQuestions from './InterviewQuestions.jsx';
 import RepoExplorer from './RepoExplorer.jsx';
 import ReviewGateModal from './ReviewGateModal.jsx';
+import PrintableDossier from './PrintableDossier.jsx';
 import {
   Copy,
   Check,
@@ -463,6 +464,9 @@ export default function ReportView({ reportData, onRefresh, isRefreshing, apiBas
         candidateUsername={username}
         apiBase={apiBase}
       />
+
+      {/* Clean 2-Page Executive Printable Dossier (Active on print/PDF) */}
+      <PrintableDossier reportData={reportData} />
     </div>
   );
 }
