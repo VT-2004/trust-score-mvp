@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext.jsx';
-import { X, ShieldCheck, User, Mail, Lock, Sparkles, AlertCircle, Zap, KeyRound, CheckCircle2, ArrowLeft } from 'lucide-react';
+import { X, ShieldCheck, User, Mail, Lock, Sparkles, AlertCircle, Zap, KeyRound, CheckCircle2, ArrowLeft, RefreshCw } from 'lucide-react';
 
 export default function AuthModal() {
   const { isAuthModalOpen, setIsAuthModalOpen, authModalReason, loginWithCredentials, signupWithCredentials, resetPasswordWithCredentials } = useAuth();
@@ -26,7 +26,7 @@ export default function AuthModal() {
         return;
       }
       if (password !== confirmPassword) {
-        setError('Passwords do not match.');
+        setError('Passwords do not match. Please ensure both passwords match.');
         return;
       }
       setIsLoading(true);
@@ -34,7 +34,7 @@ export default function AuthModal() {
         await resetPasswordWithCredentials(email, password);
         setSuccessMessage('Password successfully updated! Logging you in...');
       } catch (err) {
-        setError(err.message || 'Failed to reset password. Please check your email.');
+        setError(err.message || 'Failed to reset password. Please verify the email address.');
       } finally {
         setIsLoading(false);
       }
@@ -54,8 +54,6 @@ export default function AuthModal() {
       setIsLoading(false);
     }
   };
-
-  const isWrongPassword = error && (error.toLowerCase().includes('password') || error.toLowerCase().includes('invalid'));
 
   return (
     <div style={{
@@ -98,6 +96,70 @@ export default function AuthModal() {
           <X size={20} />
         </button>
 
+        {/* Mode Switcher Tabs */}
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: '1fr 1fr 1fr',
+          background: 'var(--surface-raised)',
+          padding: '4px',
+          borderRadius: 'var(--radius-md)',
+          marginBottom: '20px',
+          gap: '4px',
+          border: '1px solid var(--border)'
+        }}>
+          <button
+            type="button"
+            onClick={() => { setAuthMode('login'); setError(null); setSuccessMessage(null); }}
+            style={{
+              padding: '7px 0',
+              borderRadius: 'var(--radius-sm)',
+              border: 'none',
+              background: authMode === 'login' ? 'var(--surface)' : 'transparent',
+              color: authMode === 'login' ? 'var(--text-main)' : 'var(--text-muted)',
+              fontWeight: authMode === 'login' ? 700 : 500,
+              fontSize: '0.8rem',
+              cursor: 'pointer',
+              boxShadow: authMode === 'login' ? 'var(--shadow-sm)' : 'none'
+            }}
+          >
+            Sign In
+          </button>
+          <button
+            type="button"
+            onClick={() => { setAuthMode('signup'); setError(null); setSuccessMessage(null); }}
+            style={{
+              padding: '7px 0',
+              borderRadius: 'var(--radius-sm)',
+              border: 'none',
+              background: authMode === 'signup' ? 'var(--surface)' : 'transparent',
+              color: authMode === 'signup' ? 'var(--text-main)' : 'var(--text-muted)',
+              fontWeight: authMode === 'signup' ? 700 : 500,
+              fontSize: '0.8rem',
+              cursor: 'pointer',
+              boxShadow: authMode === 'signup' ? 'var(--shadow-sm)' : 'none'
+            }}
+          >
+            Sign Up
+          </button>
+          <button
+            type="button"
+            onClick={() => { setAuthMode('reset'); setError(null); setSuccessMessage(null); }}
+            style={{
+              padding: '7px 0',
+              borderRadius: 'var(--radius-sm)',
+              border: 'none',
+              background: authMode === 'reset' ? 'var(--surface)' : 'transparent',
+              color: authMode === 'reset' ? '#f59e0b' : 'var(--text-muted)',
+              fontWeight: authMode === 'reset' ? 700 : 500,
+              fontSize: '0.8rem',
+              cursor: 'pointer',
+              boxShadow: authMode === 'reset' ? 'var(--shadow-sm)' : 'none'
+            }}
+          >
+            Reset Pwd
+          </button>
+        </div>
+
         {/* Top Header */}
         <div style={{ textAlign: 'center', marginBottom: '18px' }}>
           <div style={{
@@ -106,6 +168,8 @@ export default function AuthModal() {
             borderRadius: '12px',
             background: authMode === 'reset'
               ? 'linear-gradient(135deg, #f59e0b, #ec4899)'
+              : authMode === 'signup'
+              ? 'linear-gradient(135deg, #10b981, #06b6d4)'
               : 'linear-gradient(135deg, #4f46e5, #10b981)',
             color: '#fff',
             display: 'grid',
@@ -115,15 +179,15 @@ export default function AuthModal() {
           }}>
             {authMode === 'reset' ? <KeyRound size={24} /> : <ShieldCheck size={26} />}
           </div>
-          <h2 style={{ fontSize: '1.3rem', fontWeight: 800 }}>
+          <h2 style={{ fontSize: '1.28rem', fontWeight: 800 }}>
             {authMode === 'signup' && 'Create Your Account'}
-            {authMode === 'login' && 'Welcome Back'}
-            {authMode === 'reset' && 'Reset Your Password'}
+            {authMode === 'login' && 'Sign In to TrustScore'}
+            {authMode === 'reset' && 'Reset Account Password'}
           </h2>
           <p style={{ fontSize: '0.84rem', color: 'var(--text-muted)', marginTop: '4px' }}>
             {authMode === 'signup' && 'Sign up to unlock unlimited analyses and save your audit history'}
-            {authMode === 'login' && 'Sign in to access your private test history'}
-            {authMode === 'reset' && 'Enter your account email and choose a new password'}
+            {authMode === 'login' && 'Sign in to access your private test history & unlimited audits'}
+            {authMode === 'reset' && 'Enter your registered email and choose a new password'}
           </p>
         </div>
 
@@ -146,7 +210,7 @@ export default function AuthModal() {
           </div>
         )}
 
-        {/* Error message with reset prompt if password was wrong */}
+        {/* Error Alert with 1-Click Reset Shortcut */}
         {error && (
           <div style={{
             background: 'var(--danger-dim)',
@@ -161,8 +225,9 @@ export default function AuthModal() {
               <AlertCircle size={16} style={{ flexShrink: 0 }} />
               <span>{error}</span>
             </div>
-            {isWrongPassword && authMode === 'login' && (
-              <div style={{ marginTop: '8px', paddingTop: '8px', borderTop: '1px solid rgba(239, 68, 68, 0.2)', display: 'flex', justifyContent: 'flex-end' }}>
+            {authMode === 'login' && (
+              <div style={{ marginTop: '8px', paddingTop: '8px', borderTop: '1px solid rgba(239, 68, 68, 0.2)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{ fontSize: '0.78rem' }}>Forgot your password?</span>
                 <button
                   type="button"
                   onClick={() => {
@@ -170,16 +235,17 @@ export default function AuthModal() {
                     setError(null);
                   }}
                   style={{
-                    background: 'none',
-                    border: 'none',
-                    color: '#4f46e5',
+                    background: 'rgba(239, 68, 68, 0.12)',
+                    border: '1px solid rgba(239, 68, 68, 0.3)',
+                    color: 'var(--danger-text)',
                     fontWeight: 700,
-                    fontSize: '0.82rem',
-                    cursor: 'pointer',
-                    textDecoration: 'underline'
+                    fontSize: '0.78rem',
+                    padding: '3px 8px',
+                    borderRadius: '4px',
+                    cursor: 'pointer'
                   }}
                 >
-                  Forgot / Reset Password?
+                  🔑 Reset Password Now
                 </button>
               </div>
             )}
@@ -261,9 +327,9 @@ export default function AuthModal() {
                     setAuthMode('reset');
                     setError(null);
                   }}
-                  style={{ background: 'none', border: 'none', color: '#4f46e5', fontSize: '0.76rem', fontWeight: 600, cursor: 'pointer' }}
+                  style={{ background: 'none', border: 'none', color: '#4f46e5', fontSize: '0.78rem', fontWeight: 700, cursor: 'pointer', textDecoration: 'underline' }}
                 >
-                  Reset password?
+                  Forgot password?
                 </button>
               )}
             </div>
@@ -333,13 +399,13 @@ export default function AuthModal() {
           >
             {isLoading ? 'Processing…' : (
               authMode === 'signup' ? 'Create Free Account' :
-              authMode === 'reset' ? 'Update & Save New Password' :
+              authMode === 'reset' ? '🔑 Save New Password & Sign In' :
               'Sign In'
             )}
           </button>
         </form>
 
-        {/* Footer Navigation between Login / Signup / Reset */}
+        {/* Footer Navigation */}
         <div style={{ textAlign: 'center', marginTop: '16px', fontSize: '0.82rem', color: 'var(--text-muted)' }}>
           {authMode === 'reset' ? (
             <button
@@ -378,8 +444,8 @@ export default function AuthModal() {
               </button>
             </>
           ) : (
-            <>
-              Don't have an account yet?{' '}
+            <div style={{ display: 'flex', justifyContent: 'center', gap: '14px', alignItems: 'center' }}>
+              <span>Don't have an account?</span>
               <button
                 type="button"
                 onClick={() => {
@@ -390,7 +456,7 @@ export default function AuthModal() {
               >
                 Sign Up Free
               </button>
-            </>
+            </div>
           )}
         </div>
       </div>
