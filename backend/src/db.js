@@ -66,4 +66,14 @@ export async function listRecentReports(limit = 30) {
   return result.rows;
 }
 
+// Get the most recent report for a single user (for caching)
+export async function getLatestReportForUser(username) {
+  await ensureInitialized();
+  const result = await pool.query(
+    "SELECT id, username, created_at, report_json FROM reports WHERE LOWER(username) = LOWER($1) ORDER BY created_at DESC LIMIT 1",
+    [username]
+  );
+  return result.rows[0] || null;
+}
+
 export default pool;

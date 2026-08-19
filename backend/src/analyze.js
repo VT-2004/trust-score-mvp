@@ -116,15 +116,44 @@ function timelinePlausibilitySignal(repo) {
   return { score, note, ageDays: Math.round(ageDays), sizeKB };
 }
 
+// Signal 5: commit hour & rhythm distribution (detecting bot vs natural human work patterns)
+function commitHourRhythmSignal(commits) {
+  if (commits.length < 3) {
+    return { score: 70, note: "Fewer than 3 commits; insufficient data for rhythm pattern analysis.", distinctHours: commits.length };
+  }
+  const hours = commits.map(c => new Date(c.date).getUTCHours());
+  const hourCounts = new Map();
+  for (const h of hours) {
+    hourCounts.set(h, (hourCounts.get(h) || 0) + 1);
+  }
+  const distinctHours = hourCounts.size;
+  const maxInSingleHour = Math.max(...hourCounts.values());
+  const singleHourRatio = maxInSingleHour / commits.length;
+
+  let score, note;
+  if (commits.length >= 8 && singleHourRatio > 0.85) {
+    score = 35;
+    note = `${Math.round(singleHourRatio * 100)}% of commits occurred in the exact same hour window — indicative of automated scripts or bulk re-commit tools.`;
+  } else if (distinctHours >= 3 || commits.length < 8) {
+    score = 85;
+    note = `Commits are spread across ${distinctHours} distinct hours of the day, consistent with natural human work patterns.`;
+  } else {
+    score = 65;
+    note = `Commits concentrated in ${distinctHours} hour windows — somewhat compressed but plausible.`;
+  }
+  return { score, note, distinctHours, singleHourRatio: +singleHourRatio.toFixed(2) };
+}
+
 // Aggregate all signals for one repo
 export function analyzeRepo(repo, commits, username) {
   const cadence = commitCadenceSignal(commits, repo);
   const messages = commitMessageSignal(commits);
   const authorship = authorConsistencySignal(commits, username);
   const timeline = timelinePlausibilitySignal(repo);
+  const rhythm = commitHourRhythmSignal(commits);
 
   const overall = Math.round(
-    (cadence.score + messages.score + authorship.score + timeline.score) / 4
+    (cadence.score + messages.score + authorship.score + timeline.score + rhythm.score) / 5
   );
 
   return {
@@ -135,6 +164,7 @@ export function analyzeRepo(repo, commits, username) {
       commitMessages: messages,
       authorConsistency: authorship,
       timelinePlausibility: timeline,
+      commitRhythm: rhythm,
     },
     commitCount: commits.length,
   };
@@ -194,5 +224,64 @@ export function portfolioTimeline(repos, profileCreatedAt) {
       assignmentCount > nonAssignmentCount
         ? `Most repos (${assignmentCount} of ${repos.length}) follow coursework/assignment naming patterns. Single-commit pattern in these is expected, not a flag. Standalone projects (${nonAssignmentCount}) are the more informative signal for judging real-world development style.`
         : `Portfolio is spread over ${Math.round(activitySpanDays)} days of repo creation, on a GitHub account ${Math.round(accountAgeDays)} days old.`,
+  };
+}
+
+// Generate deterministic fallback report and tailored interview questions
+export function generateDeterministicReport(analysisData) {
+  const sp = analysisData.standaloneProjects;
+  const ar = analysisData.assignmentRepos;
+  const standaloneScore = sp.consistency ? sp.consistency.averageSignalScore : null;
+  const assignmentScore = ar.consistency ? ar.consistency.averageSignalScore : null;
+
+  const positiveSignals = [];
+  const worthReviewing = [];
+  const interviewQuestions = [];
+
+  if (standaloneScore !== null && standaloneScore >= 70) {
+    positiveSignals.push(`Standalone projects show strong iterative development with healthy average score (${standaloneScore}/100).`);
+  }
+  if (sp.consistency && sp.consistency.languageSpread.length > 0) {
+    positiveSignals.push(`Demonstrated portfolio breadth across languages: ${sp.consistency.languageSpread.join(", ")}.`);
+  }
+
+  // Check for flags
+  for (const r of sp.repoAnalyses || []) {
+    if (r.signals.commitCadence.score < 50) {
+      worthReviewing.push(`Repo '${r.repo}' has compressed commit cadence (${r.commitCount} commits).`);
+      interviewQuestions.push(`Can you walk us through the development process and architecture decisions for '${r.repo}'?`);
+    }
+    if (r.signals.authorConsistency.score < 70) {
+      worthReviewing.push(`Repo '${r.repo}' has ${r.signals.authorConsistency.uniqueAuthorCount} author identities.`);
+      interviewQuestions.push(`What was your specific role vs team members on '${r.repo}'?`);
+    }
+    if (r.signals.timelinePlausibility.score < 50) {
+      worthReviewing.push(`Repo '${r.repo}' appears to have been uploaded in bulk.`);
+    }
+  }
+
+  if (interviewQuestions.length === 0) {
+    interviewQuestions.push("Ask the candidate to share their screen and explain their favorite technical challenge in their top standalone project.");
+    interviewQuestions.push("Discuss how they organize commit history and branching in production environments.");
+  }
+
+  let confidenceLevel = "moderate";
+  if (standaloneScore >= 75 && (sp.repoAnalyses || []).length >= 3) confidenceLevel = "high";
+  if (standaloneScore < 50 || ((sp.repoAnalyses || []).length === 0 && (ar.repoAnalyses || []).length > 0)) confidenceLevel = "low";
+
+  return {
+    standalone_summary: sp.repoAnalyses.length
+      ? `Analyzed ${sp.analyzedCount} standalone repository project(s) with an average signal score of ${standaloneScore || 0}/100.`
+      : "No standalone public projects found; portfolio relies primarily on assignments or coursework.",
+    assignment_summary: ar.repoAnalyses.length
+      ? `Found ${ar.analyzedCount} coursework or assignment-style repos (average score: ${assignmentScore || 0}/100). Single-push patterns here are considered standard.`
+      : "No assignment-style repos identified.",
+    confidence_level: confidenceLevel,
+    positive_signals: positiveSignals.length ? positiveSignals : ["Public profile contains active GitHub repositories."],
+    worth_reviewing: worthReviewing.length ? worthReviewing : ["No major structural anomalies detected in public commit histories."],
+    interview_questions: interviewQuestions.slice(0, 3),
+    recommendation: worthReviewing.length
+      ? "Discuss the highlighted repository timelines during technical screening."
+      : "Portfolio commit signals look healthy; proceed with standard technical interview questions.",
   };
 }

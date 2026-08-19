@@ -7,7 +7,7 @@ import { fileURLToPath } from "url";
 import { getUserRepos, getRepoCommits, getUserProfile } from "./github.js";
 import { analyzeRepo, crossRepoConsistency, portfolioTimeline, looksLikeAssignment } from "./analyze.js";
 import { generateTrustReport } from "./groq.js";
-import { saveReport, getReport, listReportsForUser, listRecentReports } from "./db.js";
+import { saveReport, getReport, listReportsForUser, listRecentReports, getLatestReportForUser } from "./db.js";
 
 dotenv.config();
 
@@ -24,18 +24,60 @@ app.get("/api/health", (req, res) => {
     githubTokenSet: !!process.env.GITHUB_TOKEN && process.env.GITHUB_TOKEN !== "ghp_your_token_here",
     groqKeySet: !!process.env.GROQ_API_KEY && process.env.GROQ_API_KEY !== "gsk_your_key_here",
     databaseUrlSet: !!process.env.DATABASE_URL,
+    version: "2.0.0",
+    features: ["parallel_fetching", "hour_rhythm_signals", "interview_prompts", "report_caching", "deterministic_fallback"]
   });
 });
 
+// Helper for bounded concurrency
+async function asyncPool(limit, array, fn) {
+  const ret = [];
+  const executing = new Set();
+  for (const item of array) {
+    const p = Promise.resolve().then(() => fn(item));
+    ret.push(p);
+    executing.add(p);
+    const clean = () => executing.delete(p);
+    p.then(clean, clean);
+    if (executing.size >= limit) {
+      await Promise.race(executing);
+    }
+  }
+  return Promise.all(ret);
+}
+
 app.post("/api/analyze", async (req, res) => {
-  const { username, maxReposToAnalyze = 20 } = req.body;
+  const { username, maxReposToAnalyze = 20, forceRefresh = false } = req.body;
   if (!username) {
     return res.status(400).json({ error: "username is required" });
   }
 
+  const cleanUsername = username.trim().replace(/^@/, "");
+
   try {
-    const profile = await getUserProfile(username);
-    const allRepos = await getUserRepos(username);
+    // 1. Check for 24-hour cache if not forcing refresh
+    if (!forceRefresh) {
+      try {
+        const cachedRow = await getLatestReportForUser(cleanUsername);
+        if (cachedRow) {
+          const cacheAgeMs = Date.now() - new Date(cachedRow.created_at).getTime();
+          const cacheAgeHours = cacheAgeMs / (1000 * 60 * 60);
+          if (cacheAgeHours < 24) {
+            return res.json({
+              reportId: cachedRow.id,
+              cached: true,
+              cachedAt: cachedRow.created_at,
+              ...cachedRow.report_json
+            });
+          }
+        }
+      } catch (cacheErr) {
+        console.warn("Cache lookup warning:", cacheErr.message);
+      }
+    }
+
+    const profile = await getUserProfile(cleanUsername);
+    const allRepos = await getUserRepos(cleanUsername);
 
     if (allRepos.length === 0) {
       return res.status(404).json({ error: "No public, non-fork repositories found for this user." });
@@ -51,23 +93,32 @@ app.post("/api/analyze", async (req, res) => {
       return res.status(404).json({ error: "No substantive repos found to analyze." });
     }
 
-    async function analyzeGroup(repoList, cap) {
-      const analyses = [];
-      const skipped = [];
-      for (const repo of repoList.slice(0, cap)) {
+    async function analyzeGroupConcurrent(repoList, cap) {
+      const targetSlice = repoList.slice(0, cap);
+      const results = await asyncPool(5, targetSlice, async (repo) => {
         const [owner, repoName] = repo.full_name.split("/");
         try {
           const commits = await getRepoCommits(owner, repoName, 100);
-          analyses.push(analyzeRepo(repo, commits, username));
+          return { success: true, analysis: analyzeRepo(repo, commits, cleanUsername) };
         } catch (err) {
-          skipped.push({ repo: repo.full_name, reason: err.message });
+          return { success: false, repo: repo.full_name, reason: err.message };
+        }
+      });
+
+      const analyses = [];
+      const skipped = [];
+      for (const r of results) {
+        if (r.success) {
+          analyses.push(r.analysis);
+        } else {
+          skipped.push({ repo: r.repo, reason: r.reason });
         }
       }
       return { analyses, skipped };
     }
 
-    const standaloneResult = await analyzeGroup(standaloneRepos, maxReposToAnalyze);
-    const assignmentResult = await analyzeGroup(assignmentRepos, maxReposToAnalyze);
+    const standaloneResult = await analyzeGroupConcurrent(standaloneRepos, maxReposToAnalyze);
+    const assignmentResult = await analyzeGroupConcurrent(assignmentRepos, maxReposToAnalyze);
 
     if (standaloneResult.analyses.length === 0 && assignmentResult.analyses.length === 0) {
       return res.status(404).json({
@@ -87,7 +138,7 @@ app.post("/api/analyze", async (req, res) => {
     const timeline = portfolioTimeline(allRepos, profile.created_at);
 
     const analysisPayload = {
-      username,
+      username: cleanUsername,
       profileCreatedAt: profile.created_at,
       publicRepoCount: profile.public_repos,
       totalNonForkRepos: allRepos.length,
@@ -121,20 +172,26 @@ app.post("/api/analyze", async (req, res) => {
         confidence_level: "unavailable",
         positive_signals: [],
         worth_reviewing: [],
+        interview_questions: ["Ask the candidate to explain their top public repository."],
         recommendation: "Review raw signal data manually below.",
       };
     }
 
     const fullReport = {
-      username,
+      username: cleanUsername,
       generatedAt: new Date().toISOString(),
       aiReport,
       rawAnalysis: analysisPayload,
     };
 
-    const reportId = await saveReport(username, fullReport);
+    let reportId = null;
+    try {
+      reportId = await saveReport(cleanUsername, fullReport);
+    } catch (dbErr) {
+      console.warn("Could not save report to DB:", dbErr.message);
+    }
 
-    res.json({ reportId, ...fullReport });
+    res.json({ reportId, cached: false, ...fullReport });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: err.message });
