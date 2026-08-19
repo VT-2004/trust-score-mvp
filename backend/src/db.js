@@ -32,8 +32,46 @@ async function ensureInitialized() {
       candidate_analyzed TEXT,
       created_at TIMESTAMPTZ NOT NULL DEFAULT now()
     );
+    CREATE TABLE IF NOT EXISTS users (
+      id SERIAL PRIMARY KEY,
+      name TEXT NOT NULL,
+      email TEXT UNIQUE NOT NULL,
+      password_hash TEXT NOT NULL,
+      role TEXT NOT NULL DEFAULT 'Recruiter',
+      avatar TEXT,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
   `);
   initialized = true;
+}
+
+export async function createUser({ name, email, passwordHash, role, avatar }) {
+  await ensureInitialized();
+  const result = await pool.query(
+    `INSERT INTO users (name, email, password_hash, role, avatar, created_at)
+     VALUES ($1, $2, $3, $4, $5, now())
+     RETURNING id, name, email, role, avatar, created_at`,
+    [name, email.toLowerCase().trim(), passwordHash, role || 'Recruiter', avatar || '']
+  );
+  return result.rows[0];
+}
+
+export async function getUserByEmail(email) {
+  await ensureInitialized();
+  const result = await pool.query(
+    `SELECT id, name, email, password_hash, role, avatar, created_at FROM users WHERE email = $1`,
+    [email.toLowerCase().trim()]
+  );
+  return result.rows[0] || null;
+}
+
+export async function getUserById(id) {
+  await ensureInitialized();
+  const result = await pool.query(
+    `SELECT id, name, email, role, avatar, created_at FROM users WHERE id = $1`,
+    [id]
+  );
+  return result.rows[0] || null;
 }
 
 export async function saveReport(username, reportObj) {

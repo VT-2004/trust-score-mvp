@@ -1,25 +1,34 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext.jsx';
-import { X, ShieldCheck, User, Mail, Sparkles, Briefcase } from 'lucide-react';
+import { X, ShieldCheck, User, Mail, Lock, Sparkles, Briefcase, AlertCircle } from 'lucide-react';
 
 export default function AuthModal() {
-  const { isAuthModalOpen, setIsAuthModalOpen, login, loginDemo } = useAuth();
+  const { isAuthModalOpen, setIsAuthModalOpen, loginWithCredentials, signupWithCredentials, loginDemo } = useAuth();
   const [isSignUp, setIsSignUp] = useState(false);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [role, setRole] = useState('Recruiter / Hiring Manager');
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
 
   if (!isAuthModalOpen) return null;
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (email.trim()) {
-      login({
-        name: name.trim() || email.split('@')[0],
-        email: email.trim(),
-        role: role,
-        avatar: `https://api.dicebear.com/7.x/bottts/svg?seed=${email.trim()}`
-      });
+    setError(null);
+    setIsLoading(true);
+
+    try {
+      if (isSignUp) {
+        await signupWithCredentials(name, email, password, role);
+      } else {
+        await loginWithCredentials(email, password);
+      }
+    } catch (err) {
+      setError(err.message || 'Authentication failed. Please try again.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -28,7 +37,7 @@ export default function AuthModal() {
       position: 'fixed',
       inset: 0,
       zIndex: 100,
-      backgroundColor: 'rgba(0, 0, 0, 0.6)',
+      backgroundColor: 'rgba(0, 0, 0, 0.65)',
       backdropFilter: 'blur(6px)',
       display: 'grid',
       placeItems: 'center',
@@ -60,7 +69,7 @@ export default function AuthModal() {
           <X size={20} />
         </button>
 
-        <div style={{ textAlign: 'center', marginBottom: '24px' }}>
+        <div style={{ textAlign: 'center', marginBottom: '20px' }}>
           <div style={{
             width: '44px',
             height: '44px',
@@ -78,7 +87,7 @@ export default function AuthModal() {
             {isSignUp ? 'Create Auditor Account' : 'Sign in to TrustScore'}
           </h2>
           <p style={{ fontSize: '0.86rem', color: 'var(--text-muted)', marginTop: '4px' }}>
-            Access saved reports, tests history, and candidate audits
+            Connected to secure PostgreSQL authentication
           </p>
         </div>
 
@@ -88,24 +97,24 @@ export default function AuthModal() {
           onClick={() => loginDemo()}
           style={{
             width: '100%',
-            padding: '11px',
+            padding: '10px',
             borderRadius: 'var(--radius-md)',
             background: 'linear-gradient(135deg, rgba(79, 70, 229, 0.1), rgba(16, 185, 129, 0.1))',
             border: '1px solid rgba(79, 70, 229, 0.25)',
             color: '#4f46e5',
             fontWeight: 700,
-            fontSize: '0.88rem',
+            fontSize: '0.86rem',
             cursor: 'pointer',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             gap: '8px',
-            marginBottom: '18px',
+            marginBottom: '16px',
             transition: 'all 0.15s ease'
           }}
         >
-          <Sparkles size={16} color="#10b981" />
-          <span>Instant One-Click Demo Login</span>
+          <Sparkles size={15} color="#10b981" />
+          <span>One-Click Instant Demo Login</span>
         </button>
 
         <div style={{
@@ -113,15 +122,33 @@ export default function AuthModal() {
           alignItems: 'center',
           gap: '10px',
           color: 'var(--text-subtle)',
-          fontSize: '0.78rem',
-          margin: '16px 0',
+          fontSize: '0.74rem',
+          margin: '12px 0',
           textTransform: 'uppercase',
           letterSpacing: '0.05em'
         }}>
           <span style={{ flex: 1, height: '1px', background: 'var(--border)' }} />
-          <span>or with email</span>
+          <span>or with email & password</span>
           <span style={{ flex: 1, height: '1px', background: 'var(--border)' }} />
         </div>
+
+        {error && (
+          <div style={{
+            background: 'var(--danger-dim)',
+            border: '1px solid rgba(239, 68, 68, 0.25)',
+            borderRadius: 'var(--radius-sm)',
+            padding: '10px 14px',
+            color: 'var(--danger-text)',
+            fontSize: '0.84rem',
+            marginBottom: '14px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px'
+          }}>
+            <AlertCircle size={16} />
+            <span>{error}</span>
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
           {isSignUp && (
@@ -135,7 +162,7 @@ export default function AuthModal() {
                 required
                 style={{
                   width: '100%',
-                  padding: '10px 12px',
+                  padding: '9px 12px',
                   borderRadius: 'var(--radius-sm)',
                   border: '1px solid var(--border)',
                   background: 'var(--bg)',
@@ -156,7 +183,7 @@ export default function AuthModal() {
               required
               style={{
                 width: '100%',
-                padding: '10px 12px',
+                padding: '9px 12px',
                 borderRadius: 'var(--radius-sm)',
                 border: '1px solid var(--border)',
                 background: 'var(--bg)',
@@ -167,31 +194,55 @@ export default function AuthModal() {
           </div>
 
           <div>
-            <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, marginBottom: '4px' }}>Your Role</label>
-            <select
-              value={role}
-              onChange={e => setRole(e.target.value)}
+            <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, marginBottom: '4px' }}>Password</label>
+            <input
+              type="password"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              placeholder="••••••••"
+              required
+              minLength={6}
               style={{
                 width: '100%',
-                padding: '10px 12px',
+                padding: '9px 12px',
                 borderRadius: 'var(--radius-sm)',
                 border: '1px solid var(--border)',
                 background: 'var(--bg)',
                 color: 'var(--text-main)',
                 outline: 'none'
               }}
-            >
-              <option value="Recruiter / Hiring Manager">Recruiter / Hiring Manager</option>
-              <option value="Engineering Manager">Engineering Manager / CTO</option>
-              <option value="Freelance Client">Freelance Client</option>
-              <option value="Software Developer">Software Developer (Auditing Self)</option>
-            </select>
+            />
           </div>
+
+          {isSignUp && (
+            <div>
+              <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, marginBottom: '4px' }}>Your Role</label>
+              <select
+                value={role}
+                onChange={e => setRole(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '9px 12px',
+                  borderRadius: 'var(--radius-sm)',
+                  border: '1px solid var(--border)',
+                  background: 'var(--bg)',
+                  color: 'var(--text-main)',
+                  outline: 'none'
+                }}
+              >
+                <option value="Recruiter / Hiring Manager">Recruiter / Hiring Manager</option>
+                <option value="Engineering Manager">Engineering Manager / CTO</option>
+                <option value="Freelance Client">Freelance Client</option>
+                <option value="Software Developer">Software Developer (Auditing Self)</option>
+              </select>
+            </div>
+          )}
 
           <button
             type="submit"
+            disabled={isLoading}
             style={{
-              marginTop: '8px',
+              marginTop: '6px',
               padding: '12px',
               borderRadius: 'var(--radius-md)',
               background: '#0f172a',
@@ -199,10 +250,10 @@ export default function AuthModal() {
               fontWeight: 700,
               fontSize: '0.92rem',
               border: 'none',
-              cursor: 'pointer'
+              cursor: isLoading ? 'not-allowed' : 'pointer'
             }}
           >
-            {isSignUp ? 'Create Account' : 'Sign In'}
+            {isLoading ? 'Processing…' : (isSignUp ? 'Create DB Account' : 'Sign In')}
           </button>
         </form>
 
@@ -210,7 +261,10 @@ export default function AuthModal() {
           {isSignUp ? 'Already have an account? ' : "Don't have an account? "}
           <button
             type="button"
-            onClick={() => setIsSignUp(!isSignUp)}
+            onClick={() => {
+              setIsSignUp(!isSignUp);
+              setError(null);
+            }}
             style={{ background: 'none', border: 'none', color: '#4f46e5', fontWeight: 700, cursor: 'pointer' }}
           >
             {isSignUp ? 'Sign In' : 'Sign Up'}

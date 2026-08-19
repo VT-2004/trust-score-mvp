@@ -6,8 +6,9 @@ import { fileURLToPath } from "url";
 
 import { getUserRepos, getRepoCommits, getUserProfile, getRateLimitStatus } from "./github.js";
 import { analyzeRepo, crossRepoConsistency, portfolioTimeline, looksLikeAssignment } from "./analyze.js";
-import { generateTrustReport } from "./groq.js";
+import { generateTrustReport, verifyResumeClaims } from "./groq.js";
 import { saveReport, getReport, listReportsForUser, listRecentReports, getLatestReportForUser, saveReview, listReviews } from "./db.js";
+import { signupUser, loginUser, getMeFromToken } from "./auth.js";
 
 dotenv.config();
 
@@ -272,6 +273,93 @@ app.get("/api/reviews", async (req, res) => {
     const limit = Math.min(parseInt(req.query.limit) || 50, 100);
     const reviews = await listReviews(limit);
     res.json(reviews);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ==========================================
+// Authentication Endpoints (DB + Bcrypt)
+// ==========================================
+app.post("/api/auth/signup", async (req, res) => {
+  try {
+    const { name, email, password, role } = req.body;
+    const result = await signupUser({ name, email, password, role });
+    res.json({ success: true, ...result });
+  } catch (err) {
+    console.error(err);
+    res.status(400).json({ error: err.message });
+  }
+});
+
+app.post("/api/auth/login", async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    const result = await loginUser({ email, password });
+    res.json({ success: true, ...result });
+  } catch (err) {
+    console.error(err);
+    res.status(400).json({ error: err.message });
+  }
+});
+
+app.get("/api/auth/me", async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization || "";
+    const token = authHeader.replace(/^Bearer\s+/i, "");
+    const user = await getMeFromToken(token);
+    res.json({ success: true, user });
+  } catch (err) {
+    res.status(401).json({ error: err.message });
+  }
+});
+
+// ==========================================
+// Zero-Leakage Resume vs GitHub Claims Verifier
+// ==========================================
+app.post("/api/verify-resume", async (req, res) => {
+  try {
+    const { username, resumeText } = req.body;
+    if (!username || !resumeText) {
+      return res.status(400).json({ error: "Username and resume text are required." });
+    }
+
+    const cleanUsername = username.trim().replace(/^@/, "");
+    
+    // Fetch GitHub repos & profile
+    const profile = await getUserProfile(cleanUsername);
+    const repos = await getUserRepos(cleanUsername);
+
+    const nonForkRepos = repos.filter(r => !r.fork && !r.archived);
+    const assignmentRepos = nonForkRepos.filter(looksLikeAssignment);
+    const standaloneRepos = nonForkRepos.filter(r => !looksLikeAssignment(r));
+
+    const analysisPayload = {
+      username: cleanUsername,
+      profileCreatedAt: profile.created_at,
+      totalNonForkRepos: nonForkRepos.length,
+      repos: nonForkRepos.map(r => ({
+        name: r.name,
+        language: r.language,
+        created_at: r.created_at,
+        pushed_at: r.pushed_at,
+        stargazers_count: r.stargazers_count,
+        isAssignment: looksLikeAssignment(r)
+      })),
+      standaloneCount: standaloneRepos.length,
+      assignmentCount: assignmentRepos.length
+    };
+
+    // Stateless AI verification with PII redaction
+    const verificationReport = await verifyResumeClaims(resumeText, analysisPayload);
+
+    res.json({
+      success: true,
+      username: cleanUsername,
+      verifiedAt: new Date().toISOString(),
+      report: verificationReport
+    });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: err.message });

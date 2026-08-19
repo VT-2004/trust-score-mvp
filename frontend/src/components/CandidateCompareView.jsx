@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
-import { GitCompare, ArrowRight, ShieldCheck, AlertCircle, CheckCircle2, Award, Zap, Code, Users } from 'lucide-react';
+import { GitCompare, ArrowRight, ShieldCheck, AlertCircle, CheckCircle2, Award, Zap, Code, Users, FileText } from 'lucide-react';
 import ScoreRing from './ScoreRing.jsx';
+import ResumeVerifierView from './ResumeVerifierView.jsx';
 
 export default function CandidateCompareView({ apiBase, onSelectReport }) {
+  const [compareMode, setCompareMode] = useState('profiles'); // 'profiles' | 'resume'
   const [userA, setUserA] = useState('');
   const [userB, setUserB] = useState('');
   const [loadingA, setLoadingA] = useState(false);
@@ -55,27 +57,89 @@ export default function CandidateCompareView({ apiBase, onSelectReport }) {
 
   return (
     <div style={{ animation: 'fadeIn 0.3s ease-in-out' }}>
-      <div style={{ marginBottom: '28px', textAlign: 'center' }}>
+      {/* Mode Selector Switch */}
+      <div style={{
+        display: 'flex',
+        justifyContent: 'center',
+        marginBottom: '28px'
+      }}>
         <div style={{
-          width: '46px',
-          height: '46px',
-          borderRadius: '12px',
-          background: 'linear-gradient(135deg, #4f46e5, #ec4899)',
-          color: '#fff',
-          display: 'grid',
-          placeItems: 'center',
-          margin: '0 auto 12px',
-          boxShadow: '0 4px 14px rgba(79, 70, 229, 0.3)'
+          display: 'inline-flex',
+          padding: '4px',
+          borderRadius: 'var(--radius-full)',
+          background: 'var(--surface-raised)',
+          border: '1px solid var(--border)',
+          gap: '4px'
         }}>
-          <GitCompare size={24} />
+          <button
+            onClick={() => setCompareMode('profiles')}
+            style={{
+              padding: '8px 18px',
+              borderRadius: 'var(--radius-full)',
+              background: compareMode === 'profiles' ? '#0f172a' : 'transparent',
+              color: compareMode === 'profiles' ? '#fff' : 'var(--text-muted)',
+              fontWeight: 700,
+              fontSize: '0.84rem',
+              border: 'none',
+              cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              transition: 'all 0.15s ease'
+            }}
+          >
+            <GitCompare size={15} />
+            <span>Profile vs. Profile Compare</span>
+          </button>
+
+          <button
+            onClick={() => setCompareMode('resume')}
+            style={{
+              padding: '8px 18px',
+              borderRadius: 'var(--radius-full)',
+              background: compareMode === 'resume' ? '#0f172a' : 'transparent',
+              color: compareMode === 'resume' ? '#fff' : 'var(--text-muted)',
+              fontWeight: 700,
+              fontSize: '0.84rem',
+              border: 'none',
+              cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              transition: 'all 0.15s ease'
+            }}
+          >
+            <FileText size={15} />
+            <span>Resume vs. GitHub Claims Verifier</span>
+          </button>
         </div>
-        <h2 style={{ fontSize: '1.8rem', fontWeight: 800 }}>
-          Candidate Head-to-Head Comparison
-        </h2>
-        <p style={{ color: 'var(--text-muted)', fontSize: '0.92rem', maxWidth: '540px', margin: '6px auto 0' }}>
-          Evaluate two candidate GitHub profiles side-by-side to compare code authenticity, standalone projects, and commit entropy.
-        </p>
       </div>
+
+      {compareMode === 'resume' ? (
+        <ResumeVerifierView apiBase={apiBase} />
+      ) : (
+        <>
+          <div style={{ marginBottom: '28px', textAlign: 'center' }}>
+            <div style={{
+              width: '46px',
+              height: '46px',
+              borderRadius: '12px',
+              background: 'linear-gradient(135deg, #4f46e5, #ec4899)',
+              color: '#fff',
+              display: 'grid',
+              placeItems: 'center',
+              margin: '0 auto 12px',
+              boxShadow: '0 4px 14px rgba(79, 70, 229, 0.3)'
+            }}>
+              <GitCompare size={24} />
+            </div>
+            <h2 style={{ fontSize: '1.8rem', fontWeight: 800 }}>
+              Candidate Head-to-Head Comparison
+            </h2>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.92rem', maxWidth: '540px', margin: '6px auto 0' }}>
+              Evaluate two candidate GitHub profiles side-by-side to compare code authenticity, standalone projects, and commit entropy.
+            </p>
+          </div>
 
       {/* Compare Inputs */}
       <div style={{
@@ -298,6 +362,8 @@ export default function CandidateCompareView({ apiBase, onSelectReport }) {
             </div>
           </div>
         </div>
+      )}
+        </>
       )}
     </div>
   );
