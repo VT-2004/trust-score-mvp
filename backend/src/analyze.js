@@ -144,6 +144,26 @@ function commitHourRhythmSignal(commits) {
   return { score, note, distinctHours, singleHourRatio: +singleHourRatio.toFixed(2) };
 }
 
+// Signal 6: Pull Request & Collaboration Flow
+function collaborationSignal(commits) {
+  if (!commits || !commits.length) return { score: 70, note: "No commits available to assess collaboration flow." };
+  const prMergeCount = commits.filter(c => 
+    /merge pull request|merge branch|\(#\d+\)|from [^\s]+\/[^\s]+/i.test(c.message || '')
+  ).length;
+  const prRatio = prMergeCount / commits.length;
+
+  let score = 75;
+  let note = "Standard direct trunk commit history.";
+  if (prMergeCount > 0) {
+    score = Math.min(95, 75 + Math.round(prRatio * 40));
+    note = `Demonstrates active PR/branch workflow with ${prMergeCount} merge events (${Math.round(prRatio * 100)}% of commits).`;
+  } else if (commits.length > 25) {
+    score = 65;
+    note = "Large repository developed entirely via direct master commits without PR branch merges.";
+  }
+  return { score, note, prMergeCount, prRatio: +prRatio.toFixed(2) };
+}
+
 // Aggregate all signals for one repo
 export function analyzeRepo(repo, commits, username) {
   const cadence = commitCadenceSignal(commits, repo);
@@ -151,9 +171,10 @@ export function analyzeRepo(repo, commits, username) {
   const authorship = authorConsistencySignal(commits, username);
   const timeline = timelinePlausibilitySignal(repo);
   const rhythm = commitHourRhythmSignal(commits);
+  const collaboration = collaborationSignal(commits);
 
   const overall = Math.round(
-    (cadence.score + messages.score + authorship.score + timeline.score + rhythm.score) / 5
+    (cadence.score + messages.score + authorship.score + timeline.score + rhythm.score + collaboration.score) / 6
   );
 
   return {
@@ -165,6 +186,7 @@ export function analyzeRepo(repo, commits, username) {
       authorConsistency: authorship,
       timelinePlausibility: timeline,
       commitRhythm: rhythm,
+      collaborationFlow: collaboration,
     },
     commitCount: commits.length,
   };

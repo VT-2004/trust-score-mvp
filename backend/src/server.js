@@ -4,7 +4,7 @@ import dotenv from "dotenv";
 import path from "path";
 import { fileURLToPath } from "url";
 
-import { getUserRepos, getRepoCommits, getUserProfile } from "./github.js";
+import { getUserRepos, getRepoCommits, getUserProfile, getRateLimitStatus } from "./github.js";
 import { analyzeRepo, crossRepoConsistency, portfolioTimeline, looksLikeAssignment } from "./analyze.js";
 import { generateTrustReport } from "./groq.js";
 import { saveReport, getReport, listReportsForUser, listRecentReports, getLatestReportForUser, saveReview, listReviews } from "./db.js";
@@ -29,8 +29,17 @@ app.get("/api/health", (req, res) => {
     groqKeySet: !!process.env.GROQ_API_KEY && process.env.GROQ_API_KEY !== "gsk_your_key_here",
     databaseUrlSet: !!process.env.DATABASE_URL,
     version: "2.0.0",
-    features: ["parallel_fetching", "hour_rhythm_signals", "interview_prompts", "report_caching", "deterministic_fallback"]
+    features: ["parallel_fetching", "hour_rhythm_signals", "interview_prompts", "report_caching", "deterministic_fallback", "pr_collaboration_index"]
   });
+});
+
+app.get("/api/rate-limit", async (req, res) => {
+  try {
+    const status = await getRateLimitStatus();
+    res.json(status);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // Helper for bounded concurrency

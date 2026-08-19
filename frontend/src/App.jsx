@@ -4,6 +4,8 @@ import Navbar from './components/Navbar.jsx';
 import HeroSearch from './components/HeroSearch.jsx';
 import ReportView from './components/ReportView.jsx';
 import RecentFeed from './components/RecentFeed.jsx';
+import CandidateCompareView from './components/CandidateCompareView.jsx';
+import ShortlistView from './components/ShortlistView.jsx';
 import TestsHistoryView from './components/TestsHistoryView.jsx';
 import AnalyticsDashboard from './components/AnalyticsDashboard.jsx';
 import ReviewsView from './components/ReviewsView.jsx';
@@ -18,7 +20,7 @@ const API_BASE = isLocal
   : (window.location.hostname.includes('onrender.com') ? '' : RENDER_BACKEND);
 
 function DashboardContent() {
-  const [activeTab, setActiveTab] = useState('analyzer'); // 'analyzer' | 'result' | 'history' | 'analytics' | 'reviews'
+  const [activeTab, setActiveTab] = useState('analyzer'); // 'analyzer' | 'result' | 'compare' | 'shortlist' | 'history' | 'analytics' | 'reviews'
   const [previousTab, setPreviousTab] = useState('analyzer');
   const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'light');
   const [isOnline, setIsOnline] = useState(true);
@@ -99,9 +101,9 @@ function DashboardContent() {
     }
   };
 
-  const handleSelectHistoryReport = (report) => {
+  const handleSelectReport = (report) => {
     setReportData(report);
-    setPreviousTab('history');
+    setPreviousTab(activeTab);
     setActiveTab('result');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -129,6 +131,7 @@ function DashboardContent() {
           theme={theme}
           onToggleTheme={toggleTheme}
           isOnline={isOnline}
+          apiBase={API_BASE}
         />
       </div>
 
@@ -180,7 +183,7 @@ function DashboardContent() {
                   Auditing Candidate Profile…
                 </div>
                 <div style={{ color: 'var(--text-muted)', fontSize: '0.88rem', fontFamily: 'var(--font-mono)' }}>
-                  Concurrent repo crawl · commit entropy & rhythm analysis · synthesizing report
+                  Concurrent repo crawl · commit entropy & rhythm analysis · PR collaboration check
                 </div>
               </div>
             )}
@@ -265,20 +268,35 @@ function DashboardContent() {
           />
         )}
 
-        {/* TAB 3: Tests History & Results */}
-        {activeTab === 'history' && (
-          <TestsHistoryView
+        {/* TAB 3: Candidate Compare Mode */}
+        {activeTab === 'compare' && (
+          <CandidateCompareView
             apiBase={API_BASE}
-            onSelectReport={handleSelectHistoryReport}
+            onSelectReport={handleSelectReport}
           />
         )}
 
-        {/* TAB 4: Platform Analytics Dashboard */}
+        {/* TAB 4: Recruiter Shortlist & Notes */}
+        {activeTab === 'shortlist' && (
+          <ShortlistView
+            onSelectReport={handleSelectReport}
+          />
+        )}
+
+        {/* TAB 5: Tests History & Results */}
+        {activeTab === 'history' && (
+          <TestsHistoryView
+            apiBase={API_BASE}
+            onSelectReport={handleSelectReport}
+          />
+        )}
+
+        {/* TAB 6: Platform Analytics Dashboard */}
         {activeTab === 'analytics' && (
           <AnalyticsDashboard apiBase={API_BASE} />
         )}
 
-        {/* TAB 5: Community Reviews & Ratings */}
+        {/* TAB 7: Community Reviews & Ratings */}
         {activeTab === 'reviews' && (
           <ReviewsView
             apiBase={API_BASE}

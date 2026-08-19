@@ -81,3 +81,26 @@ export async function getRepoLanguages(owner, repo) {
 export async function getUserProfile(username) {
   return ghGet(`/users/${username}`);
 }
+
+export async function getRateLimitStatus() {
+  try {
+    const data = await ghGet("/rate_limit");
+    const core = data?.resources?.core || { limit: 60, remaining: 60, reset: Math.floor(Date.now() / 1000) + 3600 };
+    return {
+      limit: core.limit,
+      remaining: core.remaining,
+      reset: core.reset,
+      resetDate: new Date(core.reset * 1000).toISOString(),
+      hasToken: Boolean(process.env.GITHUB_TOKEN && process.env.GITHUB_TOKEN !== "ghp_your_token_here")
+    };
+  } catch (err) {
+    return {
+      limit: 60,
+      remaining: 60,
+      reset: Math.floor(Date.now() / 1000) + 3600,
+      resetDate: new Date(Date.now() + 3600000).toISOString(),
+      hasToken: false,
+      error: err.message
+    };
+  }
+}
