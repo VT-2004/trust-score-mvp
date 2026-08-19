@@ -21,6 +21,7 @@ import {
   Zap,
   Briefcase
 } from 'lucide-react';
+import { parseResumeFile } from '../utils/pdfExtractor.js';
 import ScoreRing from './ScoreRing.jsx';
 
 export default function ResumeVerifierView({ apiBase }) {
@@ -32,6 +33,7 @@ export default function ResumeVerifierView({ apiBase }) {
   const [resumeA, setResumeA] = useState('');
   const [fileA, setFileA] = useState(null);
   const [modeA, setModeA] = useState('paste');
+  const [isExtractingA, setIsExtractingA] = useState(false);
   const fileInputRefA = useRef(null);
 
   // Candidate B State
@@ -40,6 +42,7 @@ export default function ResumeVerifierView({ apiBase }) {
   const [resumeB, setResumeB] = useState('');
   const [fileB, setFileB] = useState(null);
   const [modeB, setModeB] = useState('paste');
+  const [isExtractingB, setIsExtractingB] = useState(false);
   const fileInputRefB = useRef(null);
 
   const [isLoading, setIsLoading] = useState(false);
@@ -83,24 +86,25 @@ Skills: React, Next.js, Tailwind CSS, TypeScript, Radix UI, UI/UX Design, Open S
     setError(null);
   };
 
-  const handleFileUpload = (file, setFileName, setContent) => {
+  const handleFileUpload = async (file, setFileName, setContent, setIsExtracting) => {
     if (!file) return;
     setFileName(file.name);
     setError(null);
+    if (setIsExtracting) setIsExtracting(true);
 
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const text = e.target.result;
-      if (typeof text === 'string' && text.trim()) {
-        setContent(text);
+    try {
+      const text = await parseResumeFile(file);
+      if (text && text.trim().length > 10) {
+        setContent(text.trim());
       } else {
-        setError(`Could not extract readable text from ${file.name}. Please paste text.`);
+        setError(`Could not extract readable text from ${file.name}. Please paste the resume text directly.`);
       }
-    };
-    reader.onerror = () => {
+    } catch (err) {
+      console.error('File parsing error:', err);
       setError(`Failed to read ${file.name}. Please paste your resume text directly.`);
-    };
-    reader.readAsText(file);
+    } finally {
+      if (setIsExtracting) setIsExtracting(false);
+    }
   };
 
   const handleCompare = async (e) => {
@@ -379,14 +383,21 @@ Skills: React, Next.js, Tailwind CSS, TypeScript, Radix UI, UI/UX Design, Open S
                 <input
                   type="file"
                   ref={fileInputRefA}
-                  onChange={e => handleFileUpload(e.target.files?.[0], setFileA, setResumeA)}
+                  onChange={e => handleFileUpload(e.target.files?.[0], setFileA, setResumeA, setIsExtractingA)}
                   accept=".txt,.md,.pdf,.json,.doc,.docx"
                   style={{ display: 'none' }}
                 />
 
-                {fileA && (
+                {isExtractingA && (
+                  <div style={{ fontSize: '0.76rem', color: '#4f46e5', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <div style={{ width: '12px', height: '12px', border: '2px solid #4f46e5', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.6s linear infinite' }} />
+                    <span>Extracting text from PDF/Document…</span>
+                  </div>
+                )}
+
+                {fileA && !isExtractingA && (
                   <div style={{ fontSize: '0.76rem', color: 'var(--accent-text)', marginBottom: '6px' }}>
-                    ✓ Loaded: <strong>{fileA}</strong>
+                    ✓ Loaded & Parsed: <strong>{fileA}</strong>
                   </div>
                 )}
 
@@ -498,14 +509,21 @@ Skills: React, Next.js, Tailwind CSS, TypeScript, Radix UI, UI/UX Design, Open S
                 <input
                   type="file"
                   ref={fileInputRefB}
-                  onChange={e => handleFileUpload(e.target.files?.[0], setFileB, setResumeB)}
+                  onChange={e => handleFileUpload(e.target.files?.[0], setFileB, setResumeB, setIsExtractingB)}
                   accept=".txt,.md,.pdf,.json,.doc,.docx"
                   style={{ display: 'none' }}
                 />
 
-                {fileB && (
+                {isExtractingB && (
+                  <div style={{ fontSize: '0.76rem', color: '#ec4899', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <div style={{ width: '12px', height: '12px', border: '2px solid #ec4899', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.6s linear infinite' }} />
+                    <span>Extracting text from PDF/Document…</span>
+                  </div>
+                )}
+
+                {fileB && !isExtractingB && (
                   <div style={{ fontSize: '0.76rem', color: 'var(--accent-text)', marginBottom: '6px' }}>
-                    ✓ Loaded: <strong>{fileB}</strong>
+                    ✓ Loaded & Parsed: <strong>{fileB}</strong>
                   </div>
                 )}
 

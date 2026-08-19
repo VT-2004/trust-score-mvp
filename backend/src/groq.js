@@ -87,10 +87,22 @@ export async function generateTrustReport(analysisData) {
   }
 }
 
+function cleanRawResumeText(text) {
+  if (!text) return '';
+  if (text.startsWith('%PDF') || /[\x00-\x08\x0E-\x1F]/.test(text)) {
+    const words = text.match(/[A-Za-z0-9+#./-]{2,}/g) || [];
+    const pdfNoise = new Set(['obj', 'endobj', 'stream', 'endstream', 'xref', 'Filter', 'FlateDecode', 'Length', 'Type', 'Pages', 'Catalog', 'Linearized', 'MediaBox', 'Font', 'Flate']);
+    const cleanWords = words.filter(w => !pdfNoise.has(w) && w.length < 35);
+    return cleanWords.join(' ').slice(0, 8000);
+  }
+  return text;
+}
+
 // Zero-Leakage Resume vs GitHub Claims Verifier
 export async function verifyResumeClaims(resumeText, analysisData) {
-  // Step 1: PII Scrubbing (Zero data leakage safeguard)
-  const scrubbedText = (resumeText || '')
+  // Step 1: Sanitize binary/PDF noise & PII Scrubbing
+  const cleaned = cleanRawResumeText(resumeText);
+  const scrubbedText = cleaned
     .replace(/\b(?:\+?\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}\b/g, '[PHONE_REDACTED]')
     .replace(/\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/g, '[EMAIL_REDACTED]')
     .replace(/\b\d{1,5}\s+[A-Za-z0-9\s.,#-]+(?:Street|St|Avenue|Ave|Road|Rd|Drive|Dr|Lane|Ln|Boulevard|Blvd|Court|Ct|Way)\b/gi, '[ADDRESS_REDACTED]')
@@ -183,7 +195,7 @@ Respond with a JSON object strictly adhering to this schema:
 
 // Zero-Leakage Dual Candidate Resume ATS & GitHub Comparator
 export async function compareDualResumesAndGithub({ candidateA, candidateB, targetRole }) {
-  const scrubPII = (text) => (text || '')
+  const scrubPII = (text) => cleanRawResumeText(text || '')
     .replace(/\b(?:\+?\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}\b/g, '[PHONE_REDACTED]')
     .replace(/\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/g, '[EMAIL_REDACTED]')
     .replace(/\b\d{1,5}\s+[A-Za-z0-9\s.,#-]+(?:Street|St|Avenue|Ave|Road|Rd|Drive|Dr|Lane|Ln|Boulevard|Blvd|Court|Ct|Way)\b/gi, '[ADDRESS_REDACTED]')
