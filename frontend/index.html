@@ -276,10 +276,15 @@
 </div>
 
 <script>
-// Dynamic API Base URL resolution
-const API_BASE = (window.location.origin && window.location.origin !== "null" && window.location.protocol.startsWith("http"))
-  ? window.location.origin
-  : "http://localhost:3001";
+// Dynamic API Base URL resolution:
+// - On localhost/127.0.0.1 -> points to http://localhost:3001
+// - On Render -> uses relative paths or origin
+// - On Vercel / other hosts -> points directly to the hosted Render backend
+const RENDER_BACKEND = "https://trust-score-mvp.onrender.com";
+const isLocal = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
+const API_BASE = isLocal
+  ? (window.location.port === "3001" ? "" : "http://localhost:3001")
+  : (window.location.hostname.includes("onrender.com") ? "" : RENDER_BACKEND);
 
 let loadingInterval = null;
 function showLoading(container, messages) {
